@@ -715,22 +715,44 @@ async function syncCurrentTrip(){
 
   const btn = document.getElementById('syncBtn');
   btn.textContent = 'กำลังซิงก์...'; btn.disabled = true;
+
+  const controller = new AbortController();
+  const timeoutMs = 25000;
+  const timer = setTimeout(()=> controller.abort(), timeoutMs);
+
   try{
     const res = await fetch(url, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ trip: detailTrip, trackpoints: detailPoints })
+      body: JSON.stringify({ trip: detailTrip, trackpoints: detailPoints }),
+      signal: controller.signal
     });
-    const data = await res.json().catch(()=>({ok:true}));
+    clearTimeout(timer);
+
+    if(!res.ok){
+      throw new Error(`เซิร์ฟเวอร์ตอบกลับผิดปกติ (HTTP ${res.status}) — ตรวจว่า deploy เป็น "Anyone" แล้วหรือยัง`);
+    }
+    const raw = await res.text();
+    let data;
+    try{ data = JSON.parse(raw); }
+    catch(parseErr){
+      throw new Error('ได้รับข้อมูลที่ไม่ใช่ JSON กลับมา — มักแปลว่า URL ยังไม่ได้ deploy เป็น Web app ที่ถูกต้อง หรือ Apps Script มี error');
+    }
     if(data.ok === false) throw new Error(data.error || 'sync failed');
+
     detailTrip.synced = true;
     await idbPut('trips', detailTrip);
     btn.textContent = 'ซิงก์แล้ว — ซิงก์อีกครั้ง';
     toast('ซิงก์ขึ้น Google Sheets สำเร็จ');
   }catch(err){
+    clearTimeout(timer);
     console.error(err);
     btn.textContent = 'ซิงก์ขึ้น Google Sheets';
-    toast('ซิงก์ไม่สำเร็จ: ' + err.message);
+    if(err.name === 'AbortError'){
+      toast(`หมดเวลารอ (${timeoutMs/1000}s) — เซิร์ฟเวอร์ตอบช้าเกินไป ลองใหม่อีกครั้ง`);
+    } else {
+      toast('ซิงก์ไม่สำเร็จ: ' + err.message);
+    }
   }
   btn.disabled = false;
 }
