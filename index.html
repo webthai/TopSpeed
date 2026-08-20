@@ -733,7 +733,11 @@ async function openDetail(id, isRemote){
 
 function drawChart(points, maxSpeed){
   const wrap = document.getElementById('chartWrap');
-  if(points.length < 2){ wrap.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับกราฟ</div>'; return; }
+  if(!points.length){ wrap.innerHTML = '<div class="empty">ไม่มีข้อมูลความเร็ว</div>'; return; }
+  if(points.length === 1){
+    wrap.innerHTML = `<div class="empty">บันทึกพิกัดได้จุดเดียว (ทริปสั้นมาก)<br>ความเร็ว ณ จุดนั้น: <b style="color:var(--text)">${points[0].speedKmh.toFixed(1)} กม./ชม.</b><br>ต้องมีอย่างน้อย 2 จุดถึงจะวาดกราฟความเร็ว-ระยะทางได้</div>`;
+    return;
+  }
   const maxD = points[points.length-1].distanceFromStartKm || 0;
   if(maxD <= 0.001){
     wrap.innerHTML = '<div class="empty">ทริปนี้ไม่มีระยะทางเคลื่อนที่ (GPS อยู่นิ่งจุดเดียวตลอด) จึงไม่มีกราฟให้แสดง</div>';
@@ -797,35 +801,53 @@ function drawMap(points, maxSpeed){
   const mapEl = document.getElementById('map');
   if(leafletMap){ leafletMap.remove(); leafletMap = null; }
   waypointMarkers = [];
-  if(points.length < 2){ mapEl.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับแผนที่</div>'; return; }
-  mapEl.innerHTML = '';
 
-  const totalDist = points[points.length-1].distanceFromStartKm || 0;
   const stillNoticeEl = document.getElementById('mapStillNotice');
   if(stillNoticeEl) stillNoticeEl.remove();
-  if(totalDist <= 0.001){
-    const notice = document.createElement('div');
-    notice.id = 'mapStillNotice';
-    notice.className = 'hint';
-    notice.style.cssText = 'text-align:left; margin-bottom:10px;';
-    notice.textContent = '📍 GPS อยู่นิ่งจุดเดียวตลอดทริป จึงไม่มีเส้นทางให้ไล่สี เห็นแค่หมุดต้นทาง/ปลายทางซ้อนกันที่จุดเดียว';
-    mapEl.parentNode.insertBefore(notice, mapEl);
-  }
+
+  if(!points.length){ mapEl.innerHTML = '<div class="empty">ไม่มีพิกัดให้แสดงบนแผนที่</div>'; return; }
+  mapEl.innerHTML = '';
 
   leafletMap = L.map('map', {zoomControl:false, attributionControl:true});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19, attribution: '© OpenStreetMap'
   }).addTo(leafletMap);
 
-  const latlngs = points.map(p=>[p.lat, p.lng]);
-  for(let i=1;i<points.length;i++){
-    L.polyline([[points[i-1].lat, points[i-1].lng],[points[i].lat, points[i].lng]], {
-      color: speedColor(points[i].speedKmh, Math.max(maxSpeed,20)), weight:4, opacity:0.9
-    }).addTo(leafletMap);
-  }
+  if(points.length === 1){
+    // Only one GPS fix ever came in (e.g. a trip under a second long) — still show exactly
+    // where it was, just as a single pin with no route line, instead of hiding the map.
+    const notice = document.createElement('div');
+    notice.id = 'mapStillNotice';
+    notice.className = 'hint';
+    notice.style.cssText = 'text-align:left; margin-bottom:10px;';
+    notice.textContent = '📍 บันทึกพิกัดได้จุดเดียว (ทริปสั้นมาก) จึงมีแค่หมุดเดียว ไม่มีเส้นทางให้ไล่สี';
+    mapEl.parentNode.insertBefore(notice, mapEl);
 
-  L.marker(latlngs[0], {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>ต้นทาง</b>');
-  L.marker(latlngs[latlngs.length-1], {icon: END_ICON}).addTo(leafletMap).bindPopup('<b>ปลายทาง</b>');
+    const latlng = [points[0].lat, points[0].lng];
+    L.marker(latlng, {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>จุดเดียวที่บันทึกได้</b>');
+    leafletMap.setView(latlng, 17);
+  }else{
+    const totalDist = points[points.length-1].distanceFromStartKm || 0;
+    if(totalDist <= 0.001){
+      const notice = document.createElement('div');
+      notice.id = 'mapStillNotice';
+      notice.className = 'hint';
+      notice.style.cssText = 'text-align:left; margin-bottom:10px;';
+      notice.textContent = '📍 GPS อยู่นิ่งจุดเดียวตลอดทริป จึงไม่มีเส้นทางให้ไล่สี เห็นแค่หมุดต้นทาง/ปลายทางซ้อนกันที่จุดเดียว';
+      mapEl.parentNode.insertBefore(notice, mapEl);
+    }
+
+    const latlngs = points.map(p=>[p.lat, p.lng]);
+    for(let i=1;i<points.length;i++){
+      L.polyline([[points[i-1].lat, points[i-1].lng],[points[i].lat, points[i].lng]], {
+        color: speedColor(points[i].speedKmh, Math.max(maxSpeed,20)), weight:4, opacity:0.9
+      }).addTo(leafletMap);
+    }
+
+    L.marker(latlngs[0], {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>ต้นทาง</b>');
+    L.marker(latlngs[latlngs.length-1], {icon: END_ICON}).addTo(leafletMap).bindPopup('<b>ปลายทาง</b>');
+    leafletMap.fitBounds(latlngs, {padding:[18,18]});
+  }
 
   (detailWaypoints || []).forEach(renderWaypointMarker);
 
@@ -833,15 +855,15 @@ function drawMap(points, maxSpeed){
   // Leaflet stops this from firing when the tap lands on an existing marker, so it won't fight with popups.
   leafletMap.on('click', (e)=> openPinPopup(e.latlng));
 
-  leafletMap.fitBounds(latlngs, {padding:[18,18]});
-
   // Safety net: some WebViews/browsers still report a stale container size right after the
   // fade-in transition starts, which leaves tiles looking cut off or missing. Re-measuring
-  // and re-fitting one more time after layout settles fixes that without a visible flicker.
+  // (and re-centering) one more time after layout settles fixes that without a visible flicker.
+  const latlngsForFit = points.map(p=>[p.lat, p.lng]);
   requestAnimationFrame(()=>{
     if(!leafletMap) return;
     leafletMap.invalidateSize();
-    leafletMap.fitBounds(latlngs, {padding:[18,18]});
+    if(points.length === 1){ leafletMap.setView(latlngsForFit[0], 17); }
+    else{ leafletMap.fitBounds(latlngsForFit, {padding:[18,18]}); }
   });
 }
 
@@ -894,7 +916,7 @@ function lon2tile(lon, z){ return Math.floor((lon + 180) / 360 * Math.pow(2, z))
 function lat2tile(lat, z){ return Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) + 1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, z)); }
 
 async function downloadOfflineTiles(){
-  if(!detailPoints || detailPoints.length < 2){ toast('ไม่มีเส้นทางให้ดาวน์โหลด'); return; }
+  if(!detailPoints || detailPoints.length < 1){ toast('ไม่มีพิกัดให้ดาวน์โหลด'); return; }
   if(!navigator.onLine){ toast('ต้องมีอินเทอร์เน็ตตอนดาวน์โหลดแผนที่'); return; }
 
   const lats = detailPoints.map(p=>p.lat), lngs = detailPoints.map(p=>p.lng);
