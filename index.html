@@ -113,6 +113,7 @@
   .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-top:16px;}
   .card h3{margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:600;}
   #map{height:260px; border-radius:12px; overflow:hidden;}
+  #homeMap{height:220px; border-radius:12px; overflow:hidden; background:var(--surface-2);}
   .legend{display:flex; align-items:center; gap:8px; margin-top:10px; font-size:11px; color:var(--muted); font-family:var(--mono);}
   .legend .bar{flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,var(--slow),#FBBF24,var(--fast));}
   table.km-table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12.5px;}
@@ -249,6 +250,11 @@
       เริ่มทริป
     </button>
     <div class="hint" id="tripHint">กดเริ่มทริปเพื่อบันทึกพิกัดอัตโนมัติทุก 2-3 วิ ข้อมูลจะถูกเก็บในเครื่องแม้ไม่มีเน็ต</div>
+
+    <div class="card" id="homeMapCard" style="display:none;">
+      <h3>เส้นทางตอนนี้</h3>
+      <div id="homeMap"></div>
+    </div>
   </section>
 
   <!-- HISTORY VIEW -->
@@ -391,6 +397,10 @@ let currentTrip = null; // {id, startTime, points:[]}
 let lastPoint = null;
 let gaugeMaxSpeed = 140; // circumference reference for gauge arc
 
+// Home-screen live-follow map — only exists while a trip is actively recording (created lazily
+// on the first GPS fix, destroyed on stop) so it costs nothing in battery/data the rest of the time.
+let homeLeafletMap = null, homePolyline = null, homeMarker = null;
+
 function toggleTrip(){
   if(currentTrip) stopTrip(); else startTrip();
 }
@@ -404,9 +414,24 @@ async function startTrip(){
   document.getElementById('tripHint').innerHTML = '<b>กำลังบันทึก...</b> ปล่อยแอปไว้เปิดหน้าจอหรือทำงานพื้นหลังได้ตามการตั้งค่ามือถือ';
   document.getElementById('statusLine').textContent = 'กำลังบันทึกทริป';
 
+  // Show the container now (same fix as the detail-page map bug: make it visible BEFORE Leaflet
+  // measures it). The actual L.map() init happens in onPosition() once we have a real coordinate.
+  document.getElementById('homeMapCard').style.display = 'block';
+
   watchId = navigator.geolocation.watchPosition(onPosition, onPosError, {
     enableHighAccuracy:true, maximumAge:1000, timeout:15000
   });
+}
+
+function initHomeMap(lat, lng){
+  if(homeLeafletMap) return;
+  homeLeafletMap = L.map('homeMap', { zoomControl:false, attributionControl:true }).setView([lat, lng], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  }).addTo(homeLeafletMap);
+  homePolyline = L.polyline([[lat, lng]], { color:'#FBBF24', weight:4, opacity:0.9 }).addTo(homeLeafletMap);
+  homeMarker = L.circleMarker([lat, lng], { radius:7, weight:2, color:'#0B0E12', fillColor:'#34D399', fillOpacity:1 }).addTo(homeLeafletMap);
+  requestAnimationFrame(()=>{ if(homeLeafletMap) homeLeafletMap.invalidateSize(); });
 }
 
 function onPosError(err){
@@ -451,6 +476,18 @@ async function onPosition(pos){
 
   lastPoint = {lat, lng, t: now};
   updateGauge(speedKmh);
+
+  // Keep the home map following along. Deliberately cheap per update: setLatLng/addLatLng/panTo
+  // instead of removing+recreating layers or calling fitBounds (which recomputes zoom every time
+  // and is the main thing that makes a "live" map feel janky and drain battery).
+  if(!homeLeafletMap){
+    initHomeMap(lat, lng);
+  }else{
+    homeMarker.setLatLng([lat, lng]);
+    homePolyline.addLatLng([lat, lng]);
+    homeLeafletMap.panTo([lat, lng], { animate:true, duration:0.4 });
+  }
+
   document.getElementById('liveDist').textContent = currentTrip.distanceKm.toFixed(2) + ' กม.';
   document.getElementById('liveAvg').textContent = (currentTrip.speedSum/currentTrip.speedCount).toFixed(1);
   document.getElementById('liveMax').textContent = currentTrip.maxSpeedKmh.toFixed(1);
@@ -476,6 +513,9 @@ async function stopTrip(){
   updateGauge(0);
   document.getElementById('gpsStatus').textContent = 'GPS: รอสัญญาณ';
   document.getElementById('gpsStatus').classList.remove('live');
+
+  if(homeLeafletMap){ homeLeafletMap.remove(); homeLeafletMap = null; homePolyline = null; homeMarker = null; }
+  document.getElementById('homeMapCard').style.display = 'none';
 
   if(!t || t.points.length < 1){ toast('ไม่มีจุดพิกัดที่บันทึกได้ ลองใหม่'); renderHistory(); return; }
 
@@ -533,24 +573,34 @@ function showView(name){
 }
 
 /* ================= History ================= */
-async function renderHistory(){
-  const el = document.getElementById('tripList');
-  el.innerHTML = '<div class="empty">กำลังโหลดประวัติ...</div>';
+// Client-side cache so switching to the History tab doesn't have to wait on Google Sheets
+// every single time. "Fresh" cache is used as-is; anything older triggers a silent background
+// refresh (stale-while-revalidate) so the UI never blocks on the network.
+const REMOTE_LIST_CACHE_KEY = 'tt_remote_trips_cache_v1';
+const REMOTE_LIST_FRESH_MS = 90 * 1000; // don't even hit the network if cache is newer than this
 
-  const localTrips = await idbGetAll('trips');
+function readRemoteListCache(){
+  try{
+    const parsed = JSON.parse(localStorage.getItem(REMOTE_LIST_CACHE_KEY) || 'null');
+    if(!parsed || parsed.url !== getScriptUrl()) return null; // stale/foreign cache, ignore
+    return parsed; // {url, ts, trips}
+  }catch(e){ return null; }
+}
+function writeRemoteListCache(trips){
+  try{ localStorage.setItem(REMOTE_LIST_CACHE_KEY, JSON.stringify({ url:getScriptUrl(), ts:Date.now(), trips })); }
+  catch(e){ /* quota exceeded or private mode — just skip caching */ }
+}
 
-  // Also pull from Google Sheets so history shows up even with no local IndexedDB data
-  // (fresh device, incognito/private mode, or storage was cleared) — local copies win on conflict.
-  let remoteTrips = [];
-  if(navigator.onLine){
-    remoteTrips = await fetchRemoteTrips();
-  }
+function mergeTrips(localTrips, remoteTrips){
   const localIds = new Set(localTrips.map(t=>t.id));
-  const merged = [
+  return [
     ...localTrips.map(t=>({...t, _remote:false})),
-    ...remoteTrips.filter(t=>!localIds.has(t.id)).map(t=>({...t, synced:true, _remote:true}))
+    ...(remoteTrips||[]).filter(t=>!localIds.has(t.id)).map(t=>({...t, synced:true, _remote:true}))
   ].sort((a,b)=> new Date(b.startTime) - new Date(a.startTime));
+}
 
+function renderTripList(merged){
+  const el = document.getElementById('tripList');
   if(!merged.length){ el.innerHTML = '<div class="empty">ยังไม่มีทริปที่บันทึกไว้<br>กด "เริ่มทริป" ที่หน้าแรกเพื่อเริ่มเก็บพิกัด</div>'; return; }
   el.innerHTML = merged.map(t=>`
     <div class="trip-item" onclick="openDetail('${t.id}', ${t._remote})">
@@ -566,24 +616,61 @@ async function renderHistory(){
   `).join('');
 }
 
+async function renderHistory(){
+  const localTrips = await idbGetAll('trips');
+
+  // 1) Render instantly: local trips (always fresh) + whatever remote trips we have cached,
+  //    however old — showing slightly-stale Sheets data beats a blank/loading screen.
+  const cache = readRemoteListCache();
+  renderTripList(mergeTrips(localTrips, cache ? cache.trips : []));
+
+  // 2) Only touch the network if the cache is missing or old enough to bother — and do it
+  //    in the background, re-rendering only if the result actually differs from what's on screen.
+  const cacheAgeMs = cache ? Date.now() - cache.ts : Infinity;
+  if(navigator.onLine && cacheAgeMs > REMOTE_LIST_FRESH_MS){
+    const remoteTrips = await fetchRemoteTrips();
+    if(remoteTrips !== null){
+      writeRemoteListCache(remoteTrips);
+      if(document.getElementById('view-history').classList.contains('active')){
+        renderTripList(mergeTrips(localTrips, remoteTrips));
+      }
+    }
+  }
+}
+
 // GET https://.../exec?action=list — returns a lightweight list of all trips stored in the sheet.
+// Returns null on any failure (so the caller can tell "no data" apart from "fetch failed" and
+// avoid overwriting a good cache with an empty one).
 async function fetchRemoteTrips(){
   const base = getScriptUrl();
-  if(!base) return [];
+  if(!base) return null;
   try{
     const controller = new AbortController();
     const timer = setTimeout(()=> controller.abort(), 12000);
     const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'action=list', { signal: controller.signal });
     clearTimeout(timer);
-    if(!res.ok) return [];
+    if(!res.ok) return null;
     const data = await res.json();
-    return (data.ok && Array.isArray(data.trips)) ? data.trips : [];
-  }catch(e){ return []; } // offline/blocked/misconfigured — fail silently, local history still shows
+    return (data.ok && Array.isArray(data.trips)) ? data.trips : null;
+  }catch(e){ return null; } // offline/blocked/misconfigured — fail silently, local/cached history still shows
 }
 
-// GET https://.../exec?action=trip&id=... — returns one trip plus its full trackpoint list,
-// used when opening a trip that only exists in Google Sheets (not in this browser's IndexedDB).
+// GET https://.../exec?action=trip&id=... — returns one trip plus its full trackpoint list.
+// Past trips never change once synced, so a successful result is cached permanently per-id —
+// reopening the same trip later costs zero network round-trips.
+function remoteTripCacheKey(id){ return 'tt_remote_trip_v1:' + id; }
+function readRemoteTripCache(id){
+  try{ return JSON.parse(localStorage.getItem(remoteTripCacheKey(id)) || 'null'); }
+  catch(e){ return null; }
+}
+function writeRemoteTripCache(id, data){
+  try{ localStorage.setItem(remoteTripCacheKey(id), JSON.stringify(data)); }
+  catch(e){ /* quota exceeded — skip caching this one, it'll just refetch next time */ }
+}
 async function fetchRemoteTripDetail(id){
+  const cached = readRemoteTripCache(id);
+  if(cached) return cached; // immutable historical data — trust the cache forever, no network needed
+
   const base = getScriptUrl();
   if(!base) return null;
   try{
@@ -593,7 +680,8 @@ async function fetchRemoteTripDetail(id){
     clearTimeout(timer);
     if(!res.ok) return null;
     const data = await res.json();
-    return (data.ok && data.trip) ? data : null;
+    if(data.ok && data.trip){ writeRemoteTripCache(id, data); return data; }
+    return null;
   }catch(e){ return null; }
 }
 

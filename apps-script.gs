@@ -22,6 +22,12 @@ const TRACKPOINTS_HEADERS = [
   'id', 'tripId', 'lat', 'lng', 'speedKmh', 'timestamp', 'distanceFromStartKm'
 ];
 
+// Reading the whole Trips sheet on every ?action=list request is the slowest part of a GET —
+// cache the assembled list for a couple of minutes so repeat requests (e.g. several people
+// opening the History tab around the same time) don't each re-read the sheet from scratch.
+const TRIPS_LIST_CACHE_KEY = 'trips_list_v1';
+const TRIPS_LIST_CACHE_TTL_SEC = 120;
+
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheet_(ss, TRIPS_SHEET, TRIPS_HEADERS);
@@ -60,6 +66,8 @@ function doPost(e) {
       ]));
       replaceTrackpointsForTrip_(pointsSheet, trip.id, rows);
     }
+
+    CacheService.getScriptCache().remove(TRIPS_LIST_CACHE_KEY);
 
     return jsonResponse_({ ok: true, tripId: trip.id, pointsWritten: trackpoints.length });
   } catch (err) {
@@ -121,16 +129,31 @@ function doGet(e) {
 }
 
 function getAllTrips_() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(TRIPS_LIST_CACHE_KEY);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) { /* corrupt cache entry, fall through and rebuild */ }
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(TRIPS_SHEET);
-  if (!sheet || sheet.getLastRow() < 2) return [];
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, TRIPS_HEADERS.length).getValues();
-  return data
+  const trips = (!sheet || sheet.getLastRow() < 2) ? [] : sheet
+    .getRange(2, 1, sheet.getLastRow() - 1, TRIPS_HEADERS.length)
+    .getValues()
     .filter(row => row[0]) // skip any blank rows
     .map(row => ({
       id: row[0], startTime: row[1], endTime: row[2], distanceKm: row[3],
       avgSpeedKmh: row[4], maxSpeedKmh: row[5], perKmBreakdown: row[6], syncedAt: row[7]
     }));
+
+  try {
+    cache.put(TRIPS_LIST_CACHE_KEY, JSON.stringify(trips), TRIPS_LIST_CACHE_TTL_SEC);
+  } catch (e) {
+    // Cache values over 100KB are rejected by CacheService — fine, we just skip caching
+    // this time and every ?action=list request reads the sheet directly instead.
+  }
+
+  return trips;
 }
 
 function getTrackpointsForTrip_(tripId) {
