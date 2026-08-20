@@ -13,1158 +13,808 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0B0E12;
-    --surface:#151920;
-    --surface-2:#1D232C;
-    --line:#262D38;
-    --text:#E8EAED;
-    --muted:#7B8494;
-    --slow:#34D399;
-    --fast:#F87171;
-    --amber:#FBBF24;
-    --amber-dim:#8a6a1c;
-    --danger:#F87171;
-    --radius:18px;
-    --mono: 'JetBrains Mono', ui-monospace, monospace;
-    --sans: 'Inter', system-ui, -apple-system, sans-serif;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
-  body{
-    margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
-    padding-bottom:calc(78px + env(safe-area-inset-bottom));
-    overscroll-behavior-y:none;
-  }
-  .bg-noise{
-    position:fixed; inset:0; pointer-events:none; opacity:.035; z-index:0;
-    background-image:radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
-    background-size:22px 22px;
-  }
-  header.topbar{
-    position:sticky; top:0; z-index:20; padding:16px 20px 12px;
-    background:linear-gradient(180deg, var(--bg) 60%, transparent);
-    display:flex; align-items:center; justify-content:space-between;
-  }
-  .brand{display:flex; align-items:center; gap:9px;}
-  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--amber); box-shadow:0 0 10px var(--amber);}
-  .brand span{font-family:var(--mono); font-weight:700; letter-spacing:.04em; font-size:14px; color:var(--text);}
-  .brand small{color:var(--muted); font-size:11px; display:block; letter-spacing:.06em;}
-  .icon-btn{
-    width:38px;height:38px;border-radius:12px;background:var(--surface);
-    border:1px solid var(--line); color:var(--muted); display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-  }
-  main{position:relative; z-index:1; padding:0 20px; max-width:640px; margin:0 auto;}
-  .view{display:none; animation:fadeIn .25s ease;}
-  .view.active{display:block;}
-  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
-
-  /* ---- Gauge ---- */
-  .gauge-wrap{display:flex; flex-direction:column; align-items:center; margin:18px 0 6px;}
-  .gauge{position:relative; width:280px; height:280px;}
-  .gauge svg{width:100%; height:100%; transform:rotate(-90deg);}
-  .gauge-center{
-    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  }
-  .gauge-speed{font-family:var(--mono); font-weight:800; font-size:58px; line-height:1; letter-spacing:-.02em;}
-  .gauge-unit{font-family:var(--mono); color:var(--muted); font-size:13px; letter-spacing:.12em; margin-top:6px;}
-  .gauge-status{margin-top:10px; font-size:12px; padding:4px 12px; border-radius:99px; background:var(--surface-2); color:var(--muted); letter-spacing:.03em;}
-  .gauge-status.live{color:var(--slow); background:rgba(52,211,153,.1);}
-
-  .stat-row{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:22px 0;}
-  .stat-card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 12px;}
-  .stat-card .k{font-size:10.5px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase;}
-  .stat-card .v{font-family:var(--mono); font-weight:700; font-size:20px; margin-top:4px;}
-
-  .cta{
-    width:100%; padding:19px; border-radius:16px; border:none; font-family:var(--mono);
-    font-weight:700; font-size:16px; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center;
-    justify-content:center; gap:10px; transition:transform .12s ease;
-  }
-  .cta:active{transform:scale(.98);}
-  .cta.start{background:var(--amber); color:#1a1305;}
-  .cta.stop{background:var(--danger); color:#2a0d0d;}
-  .cta.ghost{background:var(--surface); color:var(--text); border:1px solid var(--line); font-weight:600;}
-
-  .hint{color:var(--muted); font-size:12.5px; text-align:center; margin-top:14px; line-height:1.6;}
-  .hint b{color:var(--text);}
-
-  /* ---- History ---- */
-  .section-title{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:22px 0 12px;}
-  .trip-item{
-    background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px;
-    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; cursor:pointer;
-  }
-  .trip-item .l .date{font-weight:600; font-size:14px;}
-  .trip-item .l .meta{color:var(--muted); font-size:12px; margin-top:3px; font-family:var(--mono);}
-  .trip-item .r{text-align:right;}
-  .trip-item .r .dist{font-family:var(--mono); font-weight:700; font-size:16px;}
-  .badge{font-size:10px; padding:2px 8px; border-radius:99px; margin-top:4px; display:inline-block; letter-spacing:.04em;}
-  .badge.synced{background:rgba(52,211,153,.12); color:var(--slow);}
-  .badge.pending{background:rgba(251,191,36,.12); color:var(--amber);}
-  .empty{color:var(--muted); text-align:center; padding:50px 20px; font-size:13.5px; line-height:1.7;}
-
-  /* ---- Detail ---- */
-  .detail-header{display:flex; align-items:center; gap:12px; padding-top:14px;}
-  .back-btn{width:36px;height:36px;border-radius:10px;background:var(--surface); border:1px solid var(--line); color:var(--text); display:flex;align-items:center;justify-content:center; cursor:pointer;}
-  .detail-title{font-weight:700; font-size:16px;}
-  .detail-sub{color:var(--muted); font-size:12px; font-family:var(--mono);}
-  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-top:16px;}
-  .card h3{margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:600;}
-  #map{height:260px; border-radius:12px; overflow:hidden;}
-  #homeMap{height:220px; border-radius:12px; overflow:hidden; background:var(--surface-2);}
-  .legend{display:flex; align-items:center; gap:8px; margin-top:10px; font-size:11px; color:var(--muted); font-family:var(--mono);}
-  .legend .bar{flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,var(--slow),#FBBF24,var(--fast));}
-  table.km-table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12.5px;}
-  table.km-table th{text-align:left; color:var(--muted); font-weight:500; padding:6px 4px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;}
-  table.km-table td{padding:8px 4px; border-bottom:1px solid var(--line);}
-  table.km-table tr:last-child td{border-bottom:none;}
-
-  /* ---- Bottom nav ---- */
-  nav.bottomnav{
-    position:fixed; bottom:0; left:0; right:0; z-index:30;
-    background:rgba(11,14,18,.92); backdrop-filter:blur(14px);
-    border-top:1px solid var(--line);
-    padding:10px 20px calc(10px + env(safe-area-inset-bottom));
-    display:flex; justify-content:center; gap:6px;
-  }
-  .navwrap{display:flex; gap:6px; max-width:640px; width:100%; justify-content:center;}
-  .navbtn{
-    flex:1; max-width:140px; display:flex; flex-direction:column; align-items:center; gap:4px;
-    padding:8px 4px; border-radius:12px; color:var(--muted); cursor:pointer; font-size:10.5px; letter-spacing:.04em;
-  }
-  .navbtn.on{color:var(--amber); background:rgba(251,191,36,.08);}
-  .navbtn svg{width:20px;height:20px;}
-
-  .toast{
-    position:fixed; left:50%; bottom:96px; transform:translateX(-50%);
-    background:var(--surface-2); border:1px solid var(--line); padding:10px 18px; border-radius:99px;
-    font-size:12.5px; z-index:50; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
-  }
-  .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
-
-  .modal-back{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:60; display:none; align-items:flex-end;}
-  .modal-back.show{display:flex;}
-  .modal{background:var(--surface); border-radius:20px 20px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom)); width:100%; border-top:1px solid var(--line);}
-  .modal h3{margin:0 0 4px;}
-  .modal p{color:var(--muted); font-size:12.5px; margin:0 0 14px; line-height:1.6;}
-  .modal input{
-    width:100%; background:var(--bg); border:1px solid var(--line); color:var(--text); padding:13px 14px;
-    border-radius:10px; font-family:var(--mono); font-size:12.5px; margin-bottom:12px;
-  }
-  .modal .row{display:flex; gap:10px;}
-  .modal .row .cta{padding:14px;}
-
-  svg text{font-family:var(--mono);}
-
-  /* ---- PIN Lock ---- */
-  .lock-screen{
-    position:fixed; inset:0; z-index:200; background:var(--bg);
-    display:none; align-items:center; justify-content:center; flex-direction:column;
-  }
-  .lock-screen.show{display:flex;}
-  .lock-inner{display:flex; flex-direction:column; align-items:center; padding:20px; max-width:320px; width:100%;}
-  .lock-icon{font-size:34px; margin-bottom:10px;}
-  .lock-title{font-family:var(--mono); font-weight:700; font-size:17px;}
-  .lock-sub{color:var(--muted); font-size:12.5px; margin-top:6px; text-align:center;}
-  .pin-dots{display:flex; gap:14px; margin:26px 0 8px;}
-  .pin-dot{width:14px; height:14px; border-radius:50%; border:1.5px solid var(--line); background:transparent; transition:background .15s, border-color .15s;}
-  .pin-dot.filled{background:var(--amber); border-color:var(--amber);}
-  .lock-error{color:var(--danger); font-size:12px; height:16px; margin-bottom:10px;}
-  .keypad{display:grid; grid-template-columns:repeat(3,64px); gap:14px; margin-top:8px;}
-  .keypad button{
-    width:64px; height:64px; border-radius:50%; border:1px solid var(--line); background:var(--surface);
-    color:var(--text); font-family:var(--mono); font-size:20px; font-weight:600; cursor:pointer;
-  }
-  .keypad button:active{background:var(--surface-2);}
-  .keypad button.ghostkey{background:transparent; border:none; color:var(--muted); font-size:13px; font-weight:500;}
-  .shake{animation:shake .35s;}
-  @keyframes shake{
-    10%,90%{transform:translateX(-2px);} 20%,80%{transform:translateX(4px);}
-    30%,50%,70%{transform:translateX(-8px);} 40%,60%{transform:translateX(8px);}
-  }
+:root{
+--bg:#0B0E12;
+--surface:#151920;
+--surface-2:#1D232C;
+--line:#262D38;
+--text:#E8EAED;
+--muted:#7B8494;
+--slow:#34D399;
+--fast:#F87171;
+--amber:#FBBF24;
+--amber-dim:#8a6a1c;
+--danger:#F87171;
+--radius:18px;
+--mono: 'JetBrains Mono', ui-monospace, monospace;
+--sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+padding-bottom:calc(78px + env(safe-area-inset-bottom));
+overscroll-behavior-y:none;
+}
+.bg-noise{
+position:fixed; inset:0; pointer-events:none; opacity:.035; z-index:0;
+background-image:radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
+background-size:22px 22px;
+}
+header.topbar{
+position:sticky; top:0; z-index:20; padding:16px 20px 12px;
+background:linear-gradient(180deg, var(--bg) 60%, transparent);
+display:flex; align-items:center; justify-content:space-between;
+}
+.brand{display:flex; align-items:center; gap:9px;}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--amber); box-shadow:0 0 10px var(--amber);}
+.brand span{font-family:var(--mono); font-weight:700; letter-spacing:.04em; font-size:14px; color:var(--text);}
+.brand small{color:var(--muted); font-size:11px; display:block; letter-spacing:.06em;}
+.icon-btn{
+width:38px;height:38px;border-radius:12px;background:var(--surface);
+border:1px solid var(--line); color:var(--muted); display:flex;align-items:center;justify-content:center;
+cursor:pointer;
+}
+main{position:relative; z-index:1; padding:0 20px; max-width:640px; margin:0 auto;}
+.view{display:none; animation:fadeIn .25s ease;}
+.view.active{display:block;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+/* ---- Gauge ---- */
+.gauge-wrap{display:flex; flex-direction:column; align-items:center; margin:18px 0 6px;}
+.gauge{position:relative; width:280px; height:280px;}
+.gauge svg{width:100%; height:100%; transform:rotate(-90deg);}
+.gauge-center{
+position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.gauge-speed{font-family:var(--mono); font-weight:800; font-size:58px; line-height:1; letter-spacing:-.02em;}
+.gauge-unit{font-family:var(--mono); color:var(--muted); font-size:13px; letter-spacing:.12em; margin-top:6px;}
+.gauge-status{margin-top:10px; font-size:12px; padding:4px 12px; border-radius:99px; background:var(--surface-2); color:var(--muted); letter-spacing:.03em;}
+.gauge-status.live{color:var(--slow); background:rgba(52,211,153,.1);}
+.stat-row{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:22px 0;}
+.stat-card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 12px;}
+.stat-card .k{font-size:10.5px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase;}
+.stat-card .v{font-family:var(--mono); font-weight:700; font-size:20px; margin-top:4px;}
+.cta{
+width:100%; padding:19px; border-radius:16px; border:none; font-family:var(--mono);
+font-weight:700; font-size:16px; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center;
+justify-content:center; gap:10px; transition:transform .12s ease;
+}
+.cta:active{transform:scale(.98);}
+.cta.start{background:var(--amber); color:#1a1305;}
+.cta.stop{background:var(--danger); color:#2a0d0d;}
+.cta.ghost{background:var(--surface); color:var(--text); border:1px solid var(--line); font-weight:600;}
+.hint{color:var(--muted); font-size:12.5px; text-align:center; margin-top:14px; line-height:1.6;}
+.hint b{color:var(--text);}
+/* ---- History ---- */
+.section-title{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:22px 0 12px;}
+.trip-item{
+background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px;
+display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; cursor:pointer; gap:10px;
+}
+.trip-item .l .date{font-weight:600; font-size:14px;}
+.trip-item .l .meta{color:var(--muted); font-size:12px; margin-top:3px; font-family:var(--mono);}
+.trip-item .r{text-align:right; display:flex; align-items:center; gap:10px;}
+.trip-item .r .dist{font-family:var(--mono); font-weight:700; font-size:16px;}
+.trip-del-btn{
+width:34px; height:34px; border-radius:10px; background:var(--surface-2); border:1px solid var(--line);
+color:var(--danger); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+}
+.trip-del-btn:active{transform:scale(.94);}
+.cta.danger{background:transparent; color:var(--danger); border:1px solid var(--danger);}
+.badge{font-size:10px; padding:2px 8px; border-radius:99px; margin-top:4px; display:inline-block; letter-spacing:.04em;}
+.badge.synced{background:rgba(52,211,153,.12); color:var(--slow);}
+.badge.pending{background:rgba(251,191,36,.12); color:var(--amber);}
+.empty{color:var(--muted); text-align:center; padding:50px 20px; font-size:13.5px; line-height:1.7;}
+/* ---- Detail ---- */
+.detail-header{display:flex; align-items:center; gap:12px; padding-top:14px;}
+.back-btn{width:36px;height:36px;border-radius:10px;background:var(--surface); border:1px solid var(--line); color:var(--text); display:flex;align-items:center;justify-content:center; cursor:pointer;}
+.detail-title{font-weight:700; font-size:16px;}
+.detail-sub{color:var(--muted); font-size:12px; font-family:var(--mono);}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-top:16px;}
+.card h3{margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:600;}
+#map{height:260px; border-radius:12px; overflow:hidden;}
+.legend{display:flex; align-items:center; gap:8px; margin-top:10px; font-size:11px; color:var(--muted); font-family:var(--mono);}
+.legend .bar{flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,var(--slow),#FBBF24,var(--fast));}
+table.km-table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12.5px;}
+table.km-table th{text-align:left; color:var(--muted); font-weight:500; padding:6px 4px; border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;}
+table.km-table td{padding:8px 4px; border-bottom:1px solid var(--line);}
+table.km-table tr:last-child td{border-bottom:none;}
+/* ---- Bottom nav ---- */
+nav.bottomnav{
+position:fixed; bottom:0; left:0; right:0; z-index:30;
+background:rgba(11,14,18,.92); backdrop-filter:blur(14px);
+border-top:1px solid var(--line);
+padding:10px 20px calc(10px + env(safe-area-inset-bottom));
+display:flex; justify-content:center; gap:6px;
+}
+.navwrap{display:flex; gap:6px; max-width:640px; width:100%; justify-content:center;}
+.navbtn{
+flex:1; max-width:140px; display:flex; flex-direction:column; align-items:center; gap:4px;
+padding:8px 4px; border-radius:12px; color:var(--muted); cursor:pointer; font-size:10.5px; letter-spacing:.04em;
+}
+.navbtn.on{color:var(--amber); background:rgba(251,191,36,.08);}
+.navbtn svg{width:20px;height:20px;}
+.toast{
+position:fixed; left:50%; bottom:96px; transform:translateX(-50%);
+background:var(--surface-2); border:1px solid var(--line); padding:10px 18px; border-radius:99px;
+font-size:12.5px; z-index:50; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+.modal-back{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:60; display:none; align-items:flex-end;}
+.modal-back.show{display:flex;}
+.modal{background:var(--surface); border-radius:20px 20px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom)); width:100%; border-top:1px solid var(--line);}
+.modal h3{margin:0 0 4px;}
+.modal p{color:var(--muted); font-size:12.5px; margin:0 0 14px; line-height:1.6;}
+.modal input{
+width:100%; background:var(--bg); border:1px solid var(--line); color:var(--text); padding:13px 14px;
+border-radius:10px; font-family:var(--mono); font-size:12.5px; margin-bottom:12px;
+}
+.modal .row{display:flex; gap:10px;}
+.modal .row .cta{padding:14px;}
+svg text{font-family:var(--mono);}
 </style>
 </head>
 <body>
 <div class="bg-noise"></div>
-
-<div class="lock-screen" id="lockScreen">
-  <div class="lock-inner">
-    <div class="lock-icon">🔒</div>
-    <div class="lock-title" id="lockTitle">กรอกรหัส PIN</div>
-    <div class="lock-sub" id="lockSub">ปกป้องข้อมูลทริปของคุณ</div>
-    <div class="pin-dots" id="pinDots">
-      <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
-    </div>
-    <div class="lock-error" id="lockError"></div>
-    <div class="keypad">
-      <button onclick="pinPress('1')">1</button><button onclick="pinPress('2')">2</button><button onclick="pinPress('3')">3</button>
-      <button onclick="pinPress('4')">4</button><button onclick="pinPress('5')">5</button><button onclick="pinPress('6')">6</button>
-      <button onclick="pinPress('7')">7</button><button onclick="pinPress('8')">8</button><button onclick="pinPress('9')">9</button>
-      <button class="ghostkey" onclick="pinForgot()">ลืม?</button><button onclick="pinPress('0')">0</button><button class="ghostkey" onclick="pinBackspace()">⌫</button>
-    </div>
-  </div>
-</div>
-
 <header class="topbar">
-  <div class="brand">
-    <div class="dot"></div>
-    <div>
-      <span>TRIP TRACKER</span>
-      <small id="statusLine">พร้อมเริ่มทริป</small>
-    </div>
-  </div>
-  <div class="icon-btn" onclick="openSettings()">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-  </div>
-</header>
-
-<main>
-
-  <!-- HOME VIEW -->
-  <section class="view active" id="view-home">
-    <div class="gauge-wrap">
-      <div class="gauge">
-        <svg viewBox="0 0 200 200">
-          <circle cx="100" cy="100" r="86" fill="none" stroke="#1D232C" stroke-width="14"/>
-          <circle id="gaugeArc" cx="100" cy="100" r="86" fill="none" stroke="#FBBF24" stroke-width="14"
-                  stroke-linecap="round" stroke-dasharray="540.3" stroke-dashoffset="540.3"/>
-        </svg>
-        <div class="gauge-center">
-          <div class="gauge-speed" id="speedNow">0.0</div>
-          <div class="gauge-unit">กม./ชม.</div>
-          <div class="gauge-status" id="gpsStatus">GPS: รอสัญญาณ</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="stat-row">
-      <div class="stat-card"><div class="k">ระยะทาง</div><div class="v" id="liveDist">0.00 กม.</div></div>
-      <div class="stat-card"><div class="k">เฉลี่ย</div><div class="v" id="liveAvg">0.0</div></div>
-      <div class="stat-card"><div class="k">สูงสุด</div><div class="v" id="liveMax">0.0</div></div>
-    </div>
-
-    <button class="cta start" id="tripBtn" onclick="toggleTrip()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg>
-      เริ่มทริป
-    </button>
-    <div class="hint" id="tripHint">กดเริ่มทริปเพื่อบันทึกพิกัดอัตโนมัติทุก 2-3 วิ ข้อมูลจะถูกเก็บในเครื่องแม้ไม่มีเน็ต</div>
-
-    <div class="card" id="homeMapCard" style="display:none;">
-      <h3>เส้นทางตอนนี้</h3>
-      <div id="homeMap"></div>
-    </div>
-  </section>
-
-  <!-- HISTORY VIEW -->
-  <section class="view" id="view-history">
-    <div class="section-title" style="margin-top:20px;">ทริปที่ผ่านมา</div>
-    <div id="tripList"></div>
-  </section>
-
-  <!-- DETAIL VIEW -->
-  <section class="view" id="view-detail">
-    <div class="detail-header">
-      <div class="back-btn" onclick="showView('history')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-      </div>
-      <div>
-        <div class="detail-title" id="detailTitle">ทริป</div>
-        <div class="detail-sub" id="detailSub"></div>
-      </div>
-    </div>
-
-    <button class="cta ghost" id="syncBtn" style="margin-top:16px;" onclick="syncCurrentTrip()">ซิงก์ขึ้น Google Sheets</button>
-
-    <div class="card">
-      <h3>ความเร็ว vs ระยะทาง</h3>
-      <div id="chartWrap"></div>
-    </div>
-
-    <div class="card">
-      <h3>เส้นทาง (ไล่สีตามความเร็ว)</h3>
-      <div id="map"></div>
-      <div class="legend"><span>ช้า</span><div class="bar"></div><span>เร็ว</span></div>
-      <div class="hint" style="text-align:left; margin-top:12px;">แตะจุดใดก็ได้บนแผนที่เพื่อปักหมุด (เช่น ปลายทางจริง จุดพัก) — 🟢ต้นทาง/🏁ปลายทางของเส้นทางปักให้อัตโนมัติแล้ว แตะหมุดที่ปักไว้เพื่อลบ</div>
-      <button class="cta ghost" id="downloadMapBtn" style="margin-top:10px; padding:13px;" onclick="downloadOfflineTiles()">📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์</button>
-      <div class="hint" id="downloadMapStatus" style="margin-top:8px;"></div>
-    </div>
-
-    <div class="card">
-      <h3>สรุปต่อกิโลเมตร</h3>
-      <table class="km-table" id="kmTable"></table>
-    </div>
-
-  </section>
-
-</main>
-
-<nav class="bottomnav">
-  <div class="navwrap">
-    <div class="navbtn on" id="nav-home" onclick="showView('home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
-      ทริป
-    </div>
-    <div class="navbtn" id="nav-history" onclick="showView('history')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-      ประวัติ
-    </div>
-  </div>
-</nav>
-
-<div class="toast" id="toast"></div>
-
-<div class="modal-back" id="settingsModal">
-  <div class="modal">
-    <h3>ตั้งค่า Google Sheets Sync</h3>
-    <p>ตั้งค่าไว้ให้แล้ว ทริปจะซิงก์ขึ้นชีตอัตโนมัติทุกครั้งที่กดจบทริป (ถ้ามีเน็ต) — แก้ URL ได้ถ้าต้องการเปลี่ยนปลายทาง</p>
-    <input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/xxxx/exec">
-    <div class="row">
-      <button class="cta ghost" style="flex:1" onclick="closeSettings()">ปิด</button>
-      <button class="cta start" style="flex:1" onclick="saveSettings()">บันทึก</button>
-    </div>
-    <div style="height:1px; background:var(--line); margin:18px 0;"></div>
-    <h3 style="margin-bottom:4px;">ล็อกแอปด้วยรหัส PIN</h3>
-    <p id="pinStatusText">กำลังตรวจสอบ...</p>
-    <div class="row">
-      <button class="cta ghost" style="flex:1" onclick="startPinChange()" id="pinToggleBtn">ตั้ง/เปลี่ยนรหัส PIN</button>
-      <button class="cta ghost" style="flex:1; color:var(--danger);" onclick="removePinFromSettings()" id="pinRemoveBtn">ปิดการล็อก</button>
-    </div>
-  </div>
+<div class="brand">
+<div class="dot"></div>
+<div>
+<span>TRIP TRACKER</span>
+<small id="statusLine">พร้อมเริ่มทริป</small>
 </div>
-
+</div>
+<div class="icon-btn" onclick="openSettings()">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+</div>
+</header>
+<main>
+<!-- HOME VIEW -->
+<section class="view active" id="view-home">
+<div class="gauge-wrap">
+<div class="gauge">
+<svg viewBox="0 0 200 200">
+<circle cx="100" cy="100" r="86" fill="none" stroke="#1D232C" stroke-width="14"/>
+<circle id="gaugeArc" cx="100" cy="100" r="86" fill="none" stroke="#FBBF24" stroke-width="14"
+stroke-linecap="round" stroke-dasharray="540.3" stroke-dashoffset="540.3"/>
+</svg>
+<div class="gauge-center">
+<div class="gauge-speed" id="speedNow">0.0</div>
+<div class="gauge-unit">กม./ชม.</div>
+<div class="gauge-status" id="gpsStatus">GPS: รอสัญญาณ</div>
+</div>
+</div>
+</div>
+<div class="stat-row">
+<div class="stat-card"><div class="k">ระยะทาง</div><div class="v" id="liveDist">0.00 กม.</div></div>
+<div class="stat-card"><div class="k">เฉลี่ย</div><div class="v" id="liveAvg">0.0</div></div>
+<div class="stat-card"><div class="k">สูงสุด</div><div class="v" id="liveMax">0.0</div></div>
+</div>
+<button class="cta start" id="tripBtn" onclick="toggleTrip()">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg>
+เริ่มทริป
+</button>
+<div class="hint" id="tripHint">กดเริ่มทริปเพื่อบันทึกพิกัดอัตโนมัติทุก 2-3 วิ ข้อมูลจะถูกเก็บในเครื่องแม้ไม่มีเน็ต</div>
+</section>
+<!-- HISTORY VIEW -->
+<section class="view" id="view-history">
+<div class="section-title" style="margin-top:20px;">ทริปที่ผ่านมา</div>
+<div id="tripList"></div>
+</section>
+<!-- DETAIL VIEW -->
+<section class="view" id="view-detail">
+<div class="detail-header">
+<div class="back-btn" onclick="showView('history')">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+</div>
+<div>
+<div class="detail-title" id="detailTitle">ทริป</div>
+<div class="detail-sub" id="detailSub"></div>
+</div>
+</div>
+<button class="cta ghost" id="syncBtn" style="margin-top:16px;" onclick="syncCurrentTrip()">ซิงก์ขึ้น Google Sheets</button>
+<button class="cta danger" id="deleteTripBtn" style="margin-top:10px;" onclick="deleteCurrentTrip()">🗑️ ลบทริปนี้</button>
+<div class="card">
+<h3>ความเร็ว vs ระยะทาง</h3>
+<div id="chartWrap"></div>
+</div>
+<div class="card">
+<h3>เส้นทาง (ไล่สีตามความเร็ว)</h3>
+<div id="map"></div>
+<div class="legend"><span>ช้า</span><div class="bar"></div><span>เร็ว</span></div>
+<div class="hint" style="text-align:left; margin-top:12px;">แตะจุดใดก็ได้บนแผนที่เพื่อปักหมุด (เช่น ปลายทางจริง จุดพัก) — 🟢ต้นทาง/🏁ปลายทางของเส้นทางปักให้อัตโนมัติแล้ว แตะหมุดที่ปักไว้เพื่อลบ</div>
+<button class="cta ghost" id="downloadMapBtn" style="margin-top:10px; padding:13px;" onclick="downloadOfflineTiles()">📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์</button>
+<div class="hint" id="downloadMapStatus" style="margin-top:8px;"></div>
+</div>
+<div class="card">
+<h3>สรุปต่อกิโลเมตร</h3>
+<table class="km-table" id="kmTable"></table>
+</div>
+</section>
+</main>
+<nav class="bottomnav">
+<div class="navwrap">
+<div class="navbtn on" id="nav-home" onclick="showView('home')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+ทริป
+</div>
+<div class="navbtn" id="nav-history" onclick="showView('history')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+ประวัติ
+</div>
+</div>
+</nav>
+<div class="toast" id="toast"></div>
+<div class="modal-back" id="settingsModal">
+<div class="modal">
+<h3>ตั้งค่า Google Sheets Sync</h3>
+<p>วาง URL ของ Google Apps Script Web App (ดูวิธี deploy ใน README) เพื่อให้ปุ่มซิงก์ทำงาน</p>
+<input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/xxxx/exec">
+<div class="row">
+<button class="cta ghost" style="flex:1" onclick="closeSettings()">ปิด</button>
+<button class="cta start" style="flex:1" onclick="saveSettings()">บันทึก</button>
+</div>
+</div>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ================= IndexedDB ================= */
 const DB_NAME = 'tripTrackerDB', DB_VERSION = 2;
 let db;
 function openDB(){
-  return new Promise((resolve, reject)=>{
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e=>{
-      const d = e.target.result;
-      if(!d.objectStoreNames.contains('trips')) d.createObjectStore('trips', {keyPath:'id'});
-      if(!d.objectStoreNames.contains('trackpoints')){
-        const tp = d.createObjectStore('trackpoints', {keyPath:'id'});
-        tp.createIndex('tripId', 'tripId', {unique:false});
-      }
-      if(!d.objectStoreNames.contains('waypoints')){
-        const wp = d.createObjectStore('waypoints', {keyPath:'id'});
-        wp.createIndex('tripId', 'tripId', {unique:false});
-      }
-    };
-    req.onsuccess = e=>{ db = e.target.result; resolve(db); };
-    req.onerror = e=> reject(e);
-  });
+return new Promise((resolve, reject)=>{
+const req = indexedDB.open(DB_NAME, DB_VERSION);
+req.onupgradeneeded = e=>{
+const d = e.target.result;
+if(!d.objectStoreNames.contains('trips')) d.createObjectStore('trips', {keyPath:'id'});
+if(!d.objectStoreNames.contains('trackpoints')){
+const tp = d.createObjectStore('trackpoints', {keyPath:'id'});
+tp.createIndex('tripId', 'tripId', {unique:false});
+}
+if(!d.objectStoreNames.contains('waypoints')){
+const wp = d.createObjectStore('waypoints', {keyPath:'id'});
+wp.createIndex('tripId', 'tripId', {unique:false});
+}
+};
+req.onsuccess = e=>{ db = e.target.result; resolve(db); };
+req.onerror = e=> reject(e);
+});
 }
 function tx(store, mode){ return db.transaction(store, mode).objectStore(store); }
 function idbPut(store, val){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').put(val); r.onsuccess=()=>res(); r.onerror=rej; }); }
 function idbGetAll(store){ return new Promise((res,rej)=>{ const r=tx(store,'readonly').getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
 function idbGetAllByIndex(store, idx, val){ return new Promise((res,rej)=>{ const r=tx(store,'readonly').index(idx).getAll(val); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
 function idbDelete(store, key){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').delete(key); r.onsuccess=()=>res(); r.onerror=rej; }); }
-
+function idbDeleteAllByIndex(store, idx, val){
+return new Promise((res,rej)=>{
+const req = tx(store,'readwrite').index(idx).openCursor(IDBKeyRange.only(val));
+req.onsuccess = e=>{
+const cursor = e.target.result;
+if(cursor){ cursor.delete(); cursor.continue(); } else { res(); }
+};
+req.onerror = rej;
+});
+}
 /* ================= Helpers ================= */
 function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0; return (c=='x'?r:(r&0x3|0x8)).toString(16);}); }
 function haversineKm(lat1, lon1, lat2, lon2){
-  const R = 6371, toRad = d=>d*Math.PI/180;
-  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+const R = 6371, toRad = d=>d*Math.PI/180;
+const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 function speedColor(kmh, maxRef){
-  const t = Math.max(0, Math.min(1, kmh / (maxRef||80)));
-  const c1=[52,211,153], c2=[251,191,36], c3=[248,113,113];
-  let a,b,f;
-  if(t<0.5){ a=c1; b=c2; f=t/0.5; } else { a=c2; b=c3; f=(t-0.5)/0.5; }
-  const rgb = a.map((v,i)=>Math.round(v+(b[i]-v)*f));
-  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+const t = Math.max(0, Math.min(1, kmh / (maxRef||80)));
+const c1=[52,211,153], c2=[251,191,36], c3=[248,113,113];
+let a,b,f;
+if(t<0.5){ a=c1; b=c2; f=t/0.5; } else { a=c2; b=c3; f=(t-0.5)/0.5; }
+const rgb = a.map((v,i)=>Math.round(v+(b[i]-v)*f));
+return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
 }
 function fmtDate(iso){
-  const d = new Date(iso);
-  return d.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'}) + ' · ' +
-         d.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+const d = new Date(iso);
+return d.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'}) + ' · ' +
+d.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
 }
 function toast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._h); toast._h = setTimeout(()=>t.classList.remove('show'), 2600);
+const t = document.getElementById('toast');
+t.textContent = msg; t.classList.add('show');
+clearTimeout(toast._h); toast._h = setTimeout(()=>t.classList.remove('show'), 2600);
 }
-
 /* ================= Trip state ================= */
 let watchId = null;
 let currentTrip = null; // {id, startTime, points:[]}
 let lastPoint = null;
 let gaugeMaxSpeed = 140; // circumference reference for gauge arc
-
-// Home-screen live-follow map — only exists while a trip is actively recording (created lazily
-// on the first GPS fix, destroyed on stop) so it costs nothing in battery/data the rest of the time.
-let homeLeafletMap = null, homePolyline = null, homeMarker = null;
-
 function toggleTrip(){
-  if(currentTrip) stopTrip(); else startTrip();
+if(currentTrip) stopTrip(); else startTrip();
 }
-
 async function startTrip(){
-  if(!navigator.geolocation){ toast('อุปกรณ์นี้ไม่รองรับ GPS'); return; }
-  currentTrip = { id: uuid(), startTime: new Date().toISOString(), points: [], distanceKm:0, maxSpeedKmh:0, speedSum:0, speedCount:0 };
-  lastPoint = null;
-  document.getElementById('tripBtn').className = 'cta stop';
-  document.getElementById('tripBtn').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> จบทริป & บันทึก';
-  document.getElementById('tripHint').innerHTML = '<b>กำลังบันทึก...</b> ปล่อยแอปไว้เปิดหน้าจอหรือทำงานพื้นหลังได้ตามการตั้งค่ามือถือ';
-  document.getElementById('statusLine').textContent = 'กำลังบันทึกทริป';
-
-  // Show the container now (same fix as the detail-page map bug: make it visible BEFORE Leaflet
-  // measures it). The actual L.map() init happens in onPosition() once we have a real coordinate.
-  document.getElementById('homeMapCard').style.display = 'block';
-
-  watchId = navigator.geolocation.watchPosition(onPosition, onPosError, {
-    enableHighAccuracy:true, maximumAge:1000, timeout:15000
-  });
+if(!navigator.geolocation){ toast('อุปกรณ์นี้ไม่รองรับ GPS'); return; }
+currentTrip = { id: uuid(), startTime: new Date().toISOString(), points: [], distanceKm:0, maxSpeedKmh:0, speedSum:0, speedCount:0 };
+lastPoint = null;
+document.getElementById('tripBtn').className = 'cta stop';
+document.getElementById('tripBtn').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> จบทริป & บันทึก';
+document.getElementById('tripHint').innerHTML = '<b>กำลังบันทึก...</b> ปล่อยแอปไว้เปิดหน้าจอหรือทำงานพื้นหลังได้ตามการตั้งค่ามือถือ';
+document.getElementById('statusLine').textContent = 'กำลังบันทึกทริป';
+watchId = navigator.geolocation.watchPosition(onPosition, onPosError, {
+enableHighAccuracy:true, maximumAge:1000, timeout:15000
+});
 }
-
-function initHomeMap(lat, lng){
-  if(homeLeafletMap) return;
-  homeLeafletMap = L.map('homeMap', { zoomControl:false, attributionControl:true }).setView([lat, lng], 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap'
-  }).addTo(homeLeafletMap);
-  homePolyline = L.polyline([[lat, lng]], { color:'#FBBF24', weight:4, opacity:0.9 }).addTo(homeLeafletMap);
-  homeMarker = L.circleMarker([lat, lng], { radius:7, weight:2, color:'#0B0E12', fillColor:'#34D399', fillOpacity:1 }).addTo(homeLeafletMap);
-  requestAnimationFrame(()=>{ if(homeLeafletMap) homeLeafletMap.invalidateSize(); });
-}
-
 function onPosError(err){
-  document.getElementById('gpsStatus').textContent = 'GPS: ' + (err.code===1?'ถูกปฏิเสธสิทธิ์':'สัญญาณอ่อน');
-  document.getElementById('gpsStatus').classList.remove('live');
+document.getElementById('gpsStatus').textContent = 'GPS: ' + (err.code===1?'ถูกปฏิเสธสิทธิ์':'สัญญาณอ่อน');
+document.getElementById('gpsStatus').classList.remove('live');
 }
-
 async function onPosition(pos){
-  const {latitude:lat, longitude:lng, speed} = pos.coords;
-  const now = Date.now();
-  document.getElementById('gpsStatus').textContent = 'GPS: สัญญาณดี';
-  document.getElementById('gpsStatus').classList.add('live');
-
-  let speedKmh;
-  if(speed != null && !isNaN(speed) && speed >= 0){
-    speedKmh = speed * 3.6;
-  } else if(lastPoint){
-    const dKm = haversineKm(lastPoint.lat, lastPoint.lng, lat, lng);
-    const dtH = (now - lastPoint.t) / 3600000;
-    speedKmh = dtH > 0 ? dKm/dtH : 0;
-  } else {
-    speedKmh = 0;
-  }
-  speedKmh = Math.max(0, Math.min(300, speedKmh));
-
-  let stepKm = 0;
-  if(lastPoint){
-    stepKm = haversineKm(lastPoint.lat, lastPoint.lng, lat, lng);
-    if(stepKm < 0.3) currentTrip.distanceKm += stepKm; // filter GPS jitter jumps
-  }
-
-  currentTrip.maxSpeedKmh = Math.max(currentTrip.maxSpeedKmh, speedKmh);
-  currentTrip.speedSum += speedKmh;
-  currentTrip.speedCount += 1;
-
-  const point = {
-    id: uuid(), tripId: currentTrip.id, lat, lng, speedKmh,
-    timestamp: new Date(now).toISOString(), distanceFromStartKm: currentTrip.distanceKm
-  };
-  currentTrip.points.push(point);
-  await idbPut('trackpoints', point);
-
-  lastPoint = {lat, lng, t: now};
-  updateGauge(speedKmh);
-
-  // Keep the home map following along. Deliberately cheap per update: setLatLng/addLatLng/panTo
-  // instead of removing+recreating layers or calling fitBounds (which recomputes zoom every time
-  // and is the main thing that makes a "live" map feel janky and drain battery).
-  if(!homeLeafletMap){
-    initHomeMap(lat, lng);
-  }else{
-    homeMarker.setLatLng([lat, lng]);
-    homePolyline.addLatLng([lat, lng]);
-    homeLeafletMap.panTo([lat, lng], { animate:true, duration:0.4 });
-  }
-
-  document.getElementById('liveDist').textContent = currentTrip.distanceKm.toFixed(2) + ' กม.';
-  document.getElementById('liveAvg').textContent = (currentTrip.speedSum/currentTrip.speedCount).toFixed(1);
-  document.getElementById('liveMax').textContent = currentTrip.maxSpeedKmh.toFixed(1);
+const {latitude:lat, longitude:lng, speed} = pos.coords;
+const now = Date.now();
+document.getElementById('gpsStatus').textContent = 'GPS: สัญญาณดี';
+document.getElementById('gpsStatus').classList.add('live');
+let speedKmh;
+if(speed != null && !isNaN(speed) && speed >= 0){
+speedKmh = speed * 3.6;
+} else if(lastPoint){
+const dKm = haversineKm(lastPoint.lat, lastPoint.lng, lat, lng);
+const dtH = (now - lastPoint.t) / 3600000;
+speedKmh = dtH > 0 ? dKm/dtH : 0;
+} else {
+speedKmh = 0;
 }
-
+speedKmh = Math.max(0, Math.min(300, speedKmh));
+let stepKm = 0;
+if(lastPoint){
+stepKm = haversineKm(lastPoint.lat, lastPoint.lng, lat, lng);
+if(stepKm < 0.3) currentTrip.distanceKm += stepKm; // filter GPS jitter jumps
+}
+currentTrip.maxSpeedKmh = Math.max(currentTrip.maxSpeedKmh, speedKmh);
+currentTrip.speedSum += speedKmh;
+currentTrip.speedCount += 1;
+const point = {
+id: uuid(), tripId: currentTrip.id, lat, lng, speedKmh,
+timestamp: new Date(now).toISOString(), distanceFromStartKm: currentTrip.distanceKm
+};
+currentTrip.points.push(point);
+await idbPut('trackpoints', point);
+lastPoint = {lat, lng, t: now};
+updateGauge(speedKmh);
+document.getElementById('liveDist').textContent = currentTrip.distanceKm.toFixed(2) + ' กม.';
+document.getElementById('liveAvg').textContent = (currentTrip.speedSum/currentTrip.speedCount).toFixed(1);
+document.getElementById('liveMax').textContent = currentTrip.maxSpeedKmh.toFixed(1);
+}
 function updateGauge(kmh){
-  document.getElementById('speedNow').textContent = kmh.toFixed(1);
-  const circumference = 540.3;
-  const pct = Math.max(0, Math.min(1, kmh/gaugeMaxSpeed));
-  const arc = document.getElementById('gaugeArc');
-  arc.setAttribute('stroke-dashoffset', circumference * (1 - pct * 0.75));
-  arc.setAttribute('stroke', speedColor(kmh, 100));
+document.getElementById('speedNow').textContent = kmh.toFixed(1);
+const circumference = 540.3;
+const pct = Math.max(0, Math.min(1, kmh/gaugeMaxSpeed));
+const arc = document.getElementById('gaugeArc');
+arc.setAttribute('stroke-dashoffset', circumference * (1 - pct * 0.75));
+arc.setAttribute('stroke', speedColor(kmh, 100));
 }
-
 async function stopTrip(){
-  if(watchId != null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
-  const t = currentTrip;
-  currentTrip = null;
-  document.getElementById('tripBtn').className = 'cta start';
-  document.getElementById('tripBtn').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg> เริ่มทริป';
-  document.getElementById('tripHint').textContent = 'กดเริ่มทริปเพื่อบันทึกพิกัดอัตโนมัติทุก 2-3 วิ ข้อมูลจะถูกเก็บในเครื่องแม้ไม่มีเน็ต';
-  document.getElementById('statusLine').textContent = 'พร้อมเริ่มทริป';
-  updateGauge(0);
-  document.getElementById('gpsStatus').textContent = 'GPS: รอสัญญาณ';
-  document.getElementById('gpsStatus').classList.remove('live');
-
-  if(homeLeafletMap){ homeLeafletMap.remove(); homeLeafletMap = null; homePolyline = null; homeMarker = null; }
-  document.getElementById('homeMapCard').style.display = 'none';
-
-  if(!t || t.points.length < 1){ toast('ไม่มีจุดพิกัดที่บันทึกได้ ลองใหม่'); renderHistory(); return; }
-
-  const perKm = buildPerKmBreakdown(t.points, t.distanceKm);
-  const trip = {
-    id: t.id,
-    startTime: t.startTime,
-    endTime: new Date().toISOString(),
-    distanceKm: +t.distanceKm.toFixed(3),
-    avgSpeedKmh: +(t.speedSum/t.speedCount).toFixed(1),
-    maxSpeedKmh: +t.maxSpeedKmh.toFixed(1),
-    perKmBreakdown: JSON.stringify(perKm),
-    synced: false
-  };
-  await idbPut('trips', trip);
-  if(!navigator.onLine){
-    toast('บันทึกทริปแล้ว (ออฟไลน์ — จะซิงก์ให้อัตโนมัติเมื่อมีเน็ต)');
-  }else if(t.points.length === 1){
-    toast('บันทึกทริปแล้ว (จุดเดียว, สั้นมาก)');
-  }else{
-    toast('บันทึกทริปแล้ว (' + trip.distanceKm + ' กม.)');
-  }
-  document.getElementById('liveDist').textContent = '0.00 กม.';
-  document.getElementById('liveAvg').textContent = '0.0';
-  document.getElementById('liveMax').textContent = '0.0';
-  renderHistory();
-  autoSyncTrip(trip.id); // fire-and-forget: syncs in the background if online, retried later if not
+if(watchId != null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+const t = currentTrip;
+currentTrip = null;
+document.getElementById('tripBtn').className = 'cta start';
+document.getElementById('tripBtn').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg> เริ่มทริป';
+document.getElementById('tripHint').textContent = 'กดเริ่มทริปเพื่อบันทึกพิกัดอัตโนมัติทุก 2-3 วิ ข้อมูลจะถูกเก็บในเครื่องแม้ไม่มีเน็ต';
+document.getElementById('statusLine').textContent = 'พร้อมเริ่มทริป';
+updateGauge(0);
+document.getElementById('gpsStatus').textContent = 'GPS: รอสัญญาณ';
+document.getElementById('gpsStatus').classList.remove('live');
+if(!t || t.points.length < 2){ toast('ทริปสั้นเกินไป ไม่บันทึก'); renderHistory(); return; }
+const perKm = buildPerKmBreakdown(t.points, t.distanceKm);
+const trip = {
+id: t.id,
+startTime: t.startTime,
+endTime: new Date().toISOString(),
+distanceKm: +t.distanceKm.toFixed(3),
+avgSpeedKmh: +(t.speedSum/t.speedCount).toFixed(1),
+maxSpeedKmh: +t.maxSpeedKmh.toFixed(1),
+perKmBreakdown: JSON.stringify(perKm),
+synced: false
+};
+await idbPut('trips', trip);
+toast('บันทึกทริปแล้ว (' + trip.distanceKm + ' กม.)');
+document.getElementById('liveDist').textContent = '0.00 กม.';
+document.getElementById('liveAvg').textContent = '0.0';
+document.getElementById('liveMax').textContent = '0.0';
+renderHistory();
 }
-
 function buildPerKmBreakdown(points, totalKm){
-  const buckets = {};
-  points.forEach(p=>{
-    const kmIdx = Math.floor(p.distanceFromStartKm) + 1;
-    if(!buckets[kmIdx]) buckets[kmIdx] = [];
-    buckets[kmIdx].push(p.speedKmh);
-  });
-  return Object.keys(buckets).sort((a,b)=>a-b).map(k=>{
-    const arr = buckets[k];
-    return {
-      km: +k,
-      avgSpeedKmh: +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1),
-      maxSpeedKmh: +Math.max(...arr).toFixed(1)
-    };
-  });
+const buckets = {};
+points.forEach(p=>{
+const kmIdx = Math.floor(p.distanceFromStartKm) + 1;
+if(!buckets[kmIdx]) buckets[kmIdx] = [];
+buckets[kmIdx].push(p.speedKmh);
+});
+return Object.keys(buckets).sort((a,b)=>a-b).map(k=>{
+const arr = buckets[k];
+return {
+km: +k,
+avgSpeedKmh: +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1),
+maxSpeedKmh: +Math.max(...arr).toFixed(1)
+};
+});
 }
-
 /* ================= Views / Nav ================= */
 function showView(name){
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-'+name).classList.add('active');
-  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('on'));
-  const navEl = document.getElementById('nav-'+name);
-  if(navEl) navEl.classList.add('on');
-  if(name === 'history') renderHistory();
+document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+document.getElementById('view-'+name).classList.add('active');
+document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('on'));
+const navEl = document.getElementById('nav-'+name);
+if(navEl) navEl.classList.add('on');
+if(name === 'history') renderHistory();
 }
-
 /* ================= History ================= */
-// Client-side cache so switching to the History tab doesn't have to wait on Google Sheets
-// every single time. "Fresh" cache is used as-is; anything older triggers a silent background
-// refresh (stale-while-revalidate) so the UI never blocks on the network.
-const REMOTE_LIST_CACHE_KEY = 'tt_remote_trips_cache_v1';
-const REMOTE_LIST_FRESH_MS = 90 * 1000; // don't even hit the network if cache is newer than this
-
-function readRemoteListCache(){
-  try{
-    const parsed = JSON.parse(localStorage.getItem(REMOTE_LIST_CACHE_KEY) || 'null');
-    if(!parsed || parsed.url !== getScriptUrl()) return null; // stale/foreign cache, ignore
-    return parsed; // {url, ts, trips}
-  }catch(e){ return null; }
-}
-function writeRemoteListCache(trips){
-  try{ localStorage.setItem(REMOTE_LIST_CACHE_KEY, JSON.stringify({ url:getScriptUrl(), ts:Date.now(), trips })); }
-  catch(e){ /* quota exceeded or private mode — just skip caching */ }
-}
-
-function mergeTrips(localTrips, remoteTrips){
-  const localIds = new Set(localTrips.map(t=>t.id));
-  return [
-    ...localTrips.map(t=>({...t, _remote:false})),
-    ...(remoteTrips||[]).filter(t=>!localIds.has(t.id)).map(t=>({...t, synced:true, _remote:true}))
-  ].sort((a,b)=> new Date(b.startTime) - new Date(a.startTime));
-}
-
-function renderTripList(merged){
-  const el = document.getElementById('tripList');
-  if(!merged.length){ el.innerHTML = '<div class="empty">ยังไม่มีทริปที่บันทึกไว้<br>กด "เริ่มทริป" ที่หน้าแรกเพื่อเริ่มเก็บพิกัด</div>'; return; }
-  el.innerHTML = merged.map(t=>`
-    <div class="trip-item" onclick="openDetail('${t.id}', ${t._remote})">
-      <div class="l">
-        <div class="date">${fmtDate(t.startTime)}</div>
-        <div class="meta">เฉลี่ย ${t.avgSpeedKmh} · สูงสุด ${t.maxSpeedKmh} กม./ชม.</div>
-      </div>
-      <div class="r">
-        <div class="dist">${(+t.distanceKm).toFixed(2)} กม.</div>
-        <div class="badge ${t.synced?'synced':'pending'}">${t._remote ? 'จาก Sheets' : (t.synced?'ซิงก์แล้ว':'รอซิงก์')}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
 async function renderHistory(){
-  const localTrips = await idbGetAll('trips');
-
-  // 1) Render instantly: local trips (always fresh) + whatever remote trips we have cached,
-  //    however old — showing slightly-stale Sheets data beats a blank/loading screen.
-  const cache = readRemoteListCache();
-  renderTripList(mergeTrips(localTrips, cache ? cache.trips : []));
-
-  // 2) Only touch the network if the cache is missing or old enough to bother — and do it
-  //    in the background, re-rendering only if the result actually differs from what's on screen.
-  const cacheAgeMs = cache ? Date.now() - cache.ts : Infinity;
-  if(navigator.onLine && cacheAgeMs > REMOTE_LIST_FRESH_MS){
-    const remoteTrips = await fetchRemoteTrips();
-    if(remoteTrips !== null){
-      writeRemoteListCache(remoteTrips);
-      if(document.getElementById('view-history').classList.contains('active')){
-        renderTripList(mergeTrips(localTrips, remoteTrips));
-      }
-    }
-  }
+const trips = (await idbGetAll('trips')).sort((a,b)=> new Date(b.startTime) - new Date(a.startTime));
+const el = document.getElementById('tripList');
+if(!trips.length){ el.innerHTML = '<div class="empty">ยังไม่มีทริปที่บันทึกไว้<br>กด "เริ่มทริป" ที่หน้าแรกเพื่อเริ่มเก็บพิกัด</div>'; return; }
+el.innerHTML = trips.map(t=>`
+<div class="trip-item" onclick="openDetail('${t.id}')">
+<div class="l">
+<div class="date">${fmtDate(t.startTime)}</div>
+<div class="meta">เฉลี่ย ${t.avgSpeedKmh} · สูงสุด ${t.maxSpeedKmh} กม./ชม.</div>
+</div>
+<div class="r">
+<div>
+<div class="dist">${t.distanceKm.toFixed(2)} กม.</div>
+<div class="badge ${t.synced?'synced':'pending'}">${t.synced?'ซิงก์แล้ว':'รอซิงก์'}</div>
+</div>
+<div class="trip-del-btn" onclick="deleteTrip('${t.id}', event)" title="ลบทริปนี้">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+</div>
+</div>
+</div>
+`).join('');
 }
-
-// GET https://.../exec?action=list — returns a lightweight list of all trips stored in the sheet.
-// Returns null on any failure (so the caller can tell "no data" apart from "fetch failed" and
-// avoid overwriting a good cache with an empty one).
-async function fetchRemoteTrips(){
-  const base = getScriptUrl();
-  if(!base) return null;
-  try{
-    const controller = new AbortController();
-    const timer = setTimeout(()=> controller.abort(), 12000);
-    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'action=list', { signal: controller.signal });
-    clearTimeout(timer);
-    if(!res.ok) return null;
-    const data = await res.json();
-    return (data.ok && Array.isArray(data.trips)) ? data.trips : null;
-  }catch(e){ return null; } // offline/blocked/misconfigured — fail silently, local/cached history still shows
-}
-
-// GET https://.../exec?action=trip&id=... — returns one trip plus its full trackpoint list.
-// Past trips never change once synced, so a successful result is cached permanently per-id —
-// reopening the same trip later costs zero network round-trips.
-function remoteTripCacheKey(id){ return 'tt_remote_trip_v1:' + id; }
-function readRemoteTripCache(id){
-  try{ return JSON.parse(localStorage.getItem(remoteTripCacheKey(id)) || 'null'); }
-  catch(e){ return null; }
-}
-function writeRemoteTripCache(id, data){
-  try{ localStorage.setItem(remoteTripCacheKey(id), JSON.stringify(data)); }
-  catch(e){ /* quota exceeded — skip caching this one, it'll just refetch next time */ }
-}
-async function fetchRemoteTripDetail(id){
-  const cached = readRemoteTripCache(id);
-  if(cached) return cached; // immutable historical data — trust the cache forever, no network needed
-
-  const base = getScriptUrl();
-  if(!base) return null;
-  try{
-    const controller = new AbortController();
-    const timer = setTimeout(()=> controller.abort(), 15000);
-    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'action=trip&id=' + encodeURIComponent(id), { signal: controller.signal });
-    clearTimeout(timer);
-    if(!res.ok) return null;
-    const data = await res.json();
-    if(data.ok && data.trip){ writeRemoteTripCache(id, data); return data; }
-    return null;
-  }catch(e){ return null; }
-}
-
 /* ================= Detail ================= */
-let detailTrip = null, detailPoints = null, detailWaypoints = null, leafletMap = null, detailIsRemote = false;
-
-// isRemote=true means this trip came only from Google Sheets (not in this device's IndexedDB) —
-// e.g. viewing history from a fresh/incognito browser with no local data.
-async function openDetail(id, isRemote){
-  let trip, points, waypoints;
-
-  if(isRemote){
-    const remote = await fetchRemoteTripDetail(id);
-    if(!remote){ toast('โหลดข้อมูลทริปจาก Google Sheets ไม่สำเร็จ'); return; }
-    trip = remote.trip;
-    trip.synced = true;
-    points = (remote.trackpoints || []).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
-    waypoints = [];
-  }else{
-    const trips = await idbGetAll('trips');
-    trip = trips.find(t=>t.id===id);
-    points = (await idbGetAllByIndex('trackpoints', 'tripId', id)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
-    waypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
-  }
-
-  detailTrip = trip; detailPoints = points; detailWaypoints = waypoints; detailIsRemote = !!isRemote;
-
-  document.getElementById('detailTitle').textContent = fmtDate(detailTrip.startTime);
-  document.getElementById('detailSub').textContent = `${(+detailTrip.distanceKm).toFixed(2)} กม. · เฉลี่ย ${detailTrip.avgSpeedKmh} กม./ชม. · สูงสุด ${detailTrip.maxSpeedKmh} กม./ชม.`;
-  const syncBtn = document.getElementById('syncBtn');
-  syncBtn.style.display = detailIsRemote ? 'none' : '';
-  syncBtn.textContent = detailTrip.synced ? 'ซิงก์แล้ว — ซิงก์อีกครั้ง' : 'ซิงก์ขึ้น Google Sheets';
-  document.getElementById('downloadMapStatus').textContent = detailIsRemote ? 'ดูข้อมูลจาก Google Sheets (ยังไม่มีในเครื่องนี้)' : '';
-  document.getElementById('downloadMapBtn').disabled = false;
-  document.getElementById('downloadMapBtn').textContent = '📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์';
-
-  // IMPORTANT: switch to the detail view FIRST, before drawing anything. Leaflet measures the
-  // #map container's actual pixel size when it initializes — if the view is still hidden
-  // (display:none from the .view CSS class) that size reads as 0, so tiles render broken/half-loaded.
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-detail').classList.add('active');
-  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('on'));
-
-  drawChart(detailPoints, detailTrip.maxSpeedKmh);
-  drawKmTable(JSON.parse(detailTrip.perKmBreakdown || '[]'));
-  // Wait one frame so the now-visible container has finished layout before Leaflet measures it.
-  requestAnimationFrame(()=> drawMap(detailPoints, detailTrip.maxSpeedKmh));
+let detailTrip = null, detailPoints = null, detailWaypoints = null, leafletMap = null;
+async function openDetail(id){
+const trips = await idbGetAll('trips');
+detailTrip = trips.find(t=>t.id===id);
+detailPoints = (await idbGetAllByIndex('trackpoints', 'tripId', id)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+detailWaypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
+document.getElementById('detailTitle').textContent = fmtDate(detailTrip.startTime);
+document.getElementById('detailSub').textContent = `${detailTrip.distanceKm.toFixed(2)} กม. · เฉลี่ย ${detailTrip.avgSpeedKmh} กม./ชม. · สูงสุด ${detailTrip.maxSpeedKmh} กม./ชม.`;
+document.getElementById('syncBtn').textContent = detailTrip.synced ? 'ซิงก์แล้ว — ซิงก์อีกครั้ง' : 'ซิงก์ขึ้น Google Sheets';
+document.getElementById('downloadMapStatus').textContent = '';
+document.getElementById('downloadMapBtn').disabled = false;
+document.getElementById('downloadMapBtn').textContent = '📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์';
+drawChart(detailPoints, detailTrip.maxSpeedKmh);
+drawMap(detailPoints, detailTrip.maxSpeedKmh);
+drawKmTable(JSON.parse(detailTrip.perKmBreakdown || '[]'));
+document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+document.getElementById('view-detail').classList.add('active');
+document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('on'));
 }
-
 function drawChart(points, maxSpeed){
-  const wrap = document.getElementById('chartWrap');
-  if(!points.length){ wrap.innerHTML = '<div class="empty">ไม่มีข้อมูลความเร็ว</div>'; return; }
-  if(points.length === 1){
-    wrap.innerHTML = `<div class="empty">บันทึกพิกัดได้จุดเดียว (ทริปสั้นมาก)<br>ความเร็ว ณ จุดนั้น: <b style="color:var(--text)">${points[0].speedKmh.toFixed(1)} กม./ชม.</b><br>ต้องมีอย่างน้อย 2 จุดถึงจะวาดกราฟความเร็ว-ระยะทางได้</div>`;
-    return;
-  }
-  const maxD = points[points.length-1].distanceFromStartKm || 0;
-  if(maxD <= 0.001){
-    wrap.innerHTML = '<div class="empty">ทริปนี้ไม่มีระยะทางเคลื่อนที่ (GPS อยู่นิ่งจุดเดียวตลอด) จึงไม่มีกราฟให้แสดง</div>';
-    return;
-  }
-  const W = wrap.clientWidth || 300, H = 180, pad = {l:34, r:10, t:10, b:24};
-  const maxS = Math.max(maxSpeed, 10);
-  const x = d => pad.l + (d/maxD) * (W-pad.l-pad.r);
-  const y = s => H-pad.b - (s/maxS) * (H-pad.t-pad.b);
-
-  let path = points.map((p,i)=> (i===0?'M':'L') + x(p.distanceFromStartKm).toFixed(1) + ',' + y(p.speedKmh).toFixed(1)).join(' ');
-  let area = path + ` L${x(points[points.length-1].distanceFromStartKm).toFixed(1)},${(H-pad.b)} L${x(0).toFixed(1)},${(H-pad.b)} Z`;
-
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f=>{
-    const val = (maxS*f).toFixed(0);
-    const yy = y(maxS*f);
-    return `<line x1="${pad.l}" y1="${yy}" x2="${W-pad.r}" y2="${yy}" stroke="#262D38" stroke-width="1"/>
-            <text x="${pad.l-8}" y="${yy+3}" fill="#7B8494" font-size="9" text-anchor="end">${val}</text>`;
-  }).join('');
-
-  const xTicks = [0, 0.5, 1].map(f=>{
-    const val = (maxD*f).toFixed(1);
-    const xx = x(maxD*f);
-    return `<text x="${xx}" y="${H-6}" fill="#7B8494" font-size="9" text-anchor="middle">${val}กม.</text>`;
-  }).join('');
-
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:180px;">
-    <defs>
-      <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#FBBF24" stop-opacity="0.35"/>
-        <stop offset="100%" stop-color="#FBBF24" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    ${gridLines}
-    <path d="${area}" fill="url(#areaGrad)"/>
-    <path d="${path}" fill="none" stroke="#FBBF24" stroke-width="2" stroke-linejoin="round"/>
-    ${xTicks}
-  </svg>`;
+const wrap = document.getElementById('chartWrap');
+if(points.length < 2){ wrap.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับกราฟ</div>'; return; }
+const maxD = points[points.length-1].distanceFromStartKm || 0;
+if(maxD <= 0.001){
+wrap.innerHTML = '<div class="empty">ทริปนี้ไม่มีระยะทางเคลื่อนที่ (GPS อยู่นิ่งจุดเดียวตลอด) จึงไม่มีกราฟให้แสดง</div>';
+return;
 }
-
+const W = wrap.clientWidth || 300, H = 180, pad = {l:34, r:10, t:10, b:24};
+const maxS = Math.max(maxSpeed, 10);
+const x = d => pad.l + (d/maxD) * (W-pad.l-pad.r);
+const y = s => H-pad.b - (s/maxS) * (H-pad.t-pad.b);
+let path = points.map((p,i)=> (i===0?'M':'L') + x(p.distanceFromStartKm).toFixed(1) + ',' + y(p.speedKmh).toFixed(1)).join(' ');
+let area = path + ` L${x(points[points.length-1].distanceFromStartKm).toFixed(1)},${(H-pad.b)} L${x(0).toFixed(1)},${(H-pad.b)} Z`;
+const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f=>{
+const val = (maxS*f).toFixed(0);
+const yy = y(maxS*f);
+return `<line x1="${pad.l}" y1="${yy}" x2="${W-pad.r}" y2="${yy}" stroke="#262D38" stroke-width="1"/>
+<text x="${pad.l-8}" y="${yy+3}" fill="#7B8494" font-size="9" text-anchor="end">${val}</text>`;
+}).join('');
+const xTicks = [0, 0.5, 1].map(f=>{
+const val = (maxD*f).toFixed(1);
+const xx = x(maxD*f);
+return `<text x="${xx}" y="${H-6}" fill="#7B8494" font-size="9" text-anchor="middle">${val}กม.</text>`;
+}).join('');
+wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:180px;">
+<defs>
+<linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stop-color="#FBBF24" stop-opacity="0.35"/>
+<stop offset="100%" stop-color="#FBBF24" stop-opacity="0"/>
+</linearGradient>
+</defs>
+${gridLines}
+<path d="${area}" fill="url(#areaGrad)"/>
+<path d="${path}" fill="none" stroke="#FBBF24" stroke-width="2" stroke-linejoin="round"/>
+${xTicks}
+</svg>`;
+}
 function pinIcon(color, glyph){
-  return L.divIcon({
-    className: '',
-    html: `<div style="transform:translate(-50%,-100%);">
-      <svg width="30" height="38" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">
-        <path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z" fill="${color}" stroke="#0B0E12" stroke-width="1.5"/>
-        <circle cx="15" cy="15" r="6.5" fill="#0B0E12"/>
-      </svg>
-      <div style="position:absolute; top:6px; left:0; width:30px; text-align:center; font-size:11px;">${glyph}</div>
-    </div>`,
-    iconSize: [30, 38], iconAnchor: [15, 38], popupAnchor: [0, -34]
-  });
+return L.divIcon({
+className: '',
+html: `<div style="transform:translate(-50%,-100%);">
+<svg width="30" height="38" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">
+<path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z" fill="${color}" stroke="#0B0E12" stroke-width="1.5"/>
+<circle cx="15" cy="15" r="6.5" fill="#0B0E12"/>
+</svg>
+<div style="position:absolute; top:6px; left:0; width:30px; text-align:center; font-size:11px;">${glyph}</div>
+</div>`,
+iconSize: [30, 38], iconAnchor: [15, 38], popupAnchor: [0, -34]
+});
 }
 const START_ICON = pinIcon('#34D399', '🟢');
 const END_ICON = pinIcon('#F87171', '🏁');
 const CUSTOM_ICON = pinIcon('#FBBF24', '📍');
-
 let waypointMarkers = [];
-
 function drawMap(points, maxSpeed){
-  const mapEl = document.getElementById('map');
-  if(leafletMap){ leafletMap.remove(); leafletMap = null; }
-  waypointMarkers = [];
-
-  const stillNoticeEl = document.getElementById('mapStillNotice');
-  if(stillNoticeEl) stillNoticeEl.remove();
-
-  if(!points.length){ mapEl.innerHTML = '<div class="empty">ไม่มีพิกัดให้แสดงบนแผนที่</div>'; return; }
-  mapEl.innerHTML = '';
-
-  leafletMap = L.map('map', {zoomControl:false, attributionControl:true});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap'
-  }).addTo(leafletMap);
-
-  if(points.length === 1){
-    // Only one GPS fix ever came in (e.g. a trip under a second long) — still show exactly
-    // where it was, just as a single pin with no route line, instead of hiding the map.
-    const notice = document.createElement('div');
-    notice.id = 'mapStillNotice';
-    notice.className = 'hint';
-    notice.style.cssText = 'text-align:left; margin-bottom:10px;';
-    notice.textContent = '📍 บันทึกพิกัดได้จุดเดียว (ทริปสั้นมาก) จึงมีแค่หมุดเดียว ไม่มีเส้นทางให้ไล่สี';
-    mapEl.parentNode.insertBefore(notice, mapEl);
-
-    const latlng = [points[0].lat, points[0].lng];
-    L.marker(latlng, {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>จุดเดียวที่บันทึกได้</b>');
-    leafletMap.setView(latlng, 17);
-  }else{
-    const totalDist = points[points.length-1].distanceFromStartKm || 0;
-    if(totalDist <= 0.001){
-      const notice = document.createElement('div');
-      notice.id = 'mapStillNotice';
-      notice.className = 'hint';
-      notice.style.cssText = 'text-align:left; margin-bottom:10px;';
-      notice.textContent = '📍 GPS อยู่นิ่งจุดเดียวตลอดทริป จึงไม่มีเส้นทางให้ไล่สี เห็นแค่หมุดต้นทาง/ปลายทางซ้อนกันที่จุดเดียว';
-      mapEl.parentNode.insertBefore(notice, mapEl);
-    }
-
-    const latlngs = points.map(p=>[p.lat, p.lng]);
-    for(let i=1;i<points.length;i++){
-      L.polyline([[points[i-1].lat, points[i-1].lng],[points[i].lat, points[i].lng]], {
-        color: speedColor(points[i].speedKmh, Math.max(maxSpeed,20)), weight:4, opacity:0.9
-      }).addTo(leafletMap);
-    }
-
-    L.marker(latlngs[0], {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>ต้นทาง</b>');
-    L.marker(latlngs[latlngs.length-1], {icon: END_ICON}).addTo(leafletMap).bindPopup('<b>ปลายทาง</b>');
-    leafletMap.fitBounds(latlngs, {padding:[18,18]});
-  }
-
-  (detailWaypoints || []).forEach(renderWaypointMarker);
-
-  // Tap (or click) anywhere on the map to drop a custom pin, e.g. to mark the real destination.
-  // Leaflet stops this from firing when the tap lands on an existing marker, so it won't fight with popups.
-  leafletMap.on('click', (e)=> openPinPopup(e.latlng));
-
-  // Safety net: some WebViews/browsers still report a stale container size right after the
-  // fade-in transition starts, which leaves tiles looking cut off or missing. Re-measuring
-  // (and re-centering) one more time after layout settles fixes that without a visible flicker.
-  const latlngsForFit = points.map(p=>[p.lat, p.lng]);
-  requestAnimationFrame(()=>{
-    if(!leafletMap) return;
-    leafletMap.invalidateSize();
-    if(points.length === 1){ leafletMap.setView(latlngsForFit[0], 17); }
-    else{ leafletMap.fitBounds(latlngsForFit, {padding:[18,18]}); }
-  });
+const mapEl = document.getElementById('map');
+if(leafletMap){ leafletMap.remove(); leafletMap = null; }
+waypointMarkers = [];
+if(points.length < 2){ mapEl.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับแผนที่</div>'; return; }
+mapEl.innerHTML = '';
+const totalDist = points[points.length-1].distanceFromStartKm || 0;
+const stillNoticeEl = document.getElementById('mapStillNotice');
+if(stillNoticeEl) stillNoticeEl.remove();
+if(totalDist <= 0.001){
+const notice = document.createElement('div');
+notice.id = 'mapStillNotice';
+notice.className = 'hint';
+notice.style.cssText = 'text-align:left; margin-bottom:10px;';
+notice.textContent = '📍 GPS อยู่นิ่งจุดเดียวตลอดทริป จึงไม่มีเส้นทางให้ไล่สี เห็นแค่หมุดต้นทาง/ปลายทางซ้อนกันที่จุดเดียว';
+mapEl.parentNode.insertBefore(notice, mapEl);
 }
-
+leafletMap = L.map('map', {zoomControl:false, attributionControl:true});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+maxZoom: 19, attribution: '© OpenStreetMap'
+}).addTo(leafletMap);
+const latlngs = points.map(p=>[p.lat, p.lng]);
+for(let i=1;i<points.length;i++){
+L.polyline([[points[i-1].lat, points[i-1].lng],[points[i].lat, points[i].lng]], {
+color: speedColor(points[i].speedKmh, Math.max(maxSpeed,20)), weight:4, opacity:0.9
+}).addTo(leafletMap);
+}
+L.marker(latlngs[0], {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>ต้นทาง</b>');
+L.marker(latlngs[latlngs.length-1], {icon: END_ICON}).addTo(leafletMap).bindPopup('<b>ปลายทาง</b>');
+(detailWaypoints || []).forEach(renderWaypointMarker);
+// Tap (or click) anywhere on the map to drop a custom pin, e.g. to mark the real destination.
+// Leaflet stops this from firing when the tap lands on an existing marker, so it won't fight with popups.
+leafletMap.on('click', (e)=> openPinPopup(e.latlng));
+leafletMap.fitBounds(latlngs, {padding:[18,18]});
+}
 function openPinPopup(latlng){
-  const popup = L.popup({maxWidth:220})
-    .setLatLng(latlng)
-    .setContent(`
-      <div style="font-family:Inter,sans-serif;">
-        <div style="font-size:12px; font-weight:600; margin-bottom:6px; color:#111;">ปักหมุดจุดนี้</div>
-        <input id="wpLabelInput" placeholder="เช่น ปลายทาง, จุดพัก" style="width:100%; box-sizing:border-box; padding:7px 8px; border-radius:6px; border:1px solid #ccc; font-size:12.5px; margin-bottom:6px;">
-        <button onclick="saveWaypoint(${latlng.lat}, ${latlng.lng})" style="width:100%; padding:8px; border:none; border-radius:6px; background:#FBBF24; font-weight:700; font-size:12.5px; cursor:pointer;">บันทึกหมุด</button>
-      </div>
-    `)
-    .openOn(leafletMap);
+const popup = L.popup({maxWidth:220})
+.setLatLng(latlng)
+.setContent(`
+<div style="font-family:Inter,sans-serif;">
+<div style="font-size:12px; font-weight:600; margin-bottom:6px; color:#111;">ปักหมุดจุดนี้</div>
+<input id="wpLabelInput" placeholder="เช่น ปลายทาง, จุดพัก" style="width:100%; box-sizing:border-box; padding:7px 8px; border-radius:6px; border:1px solid #ccc; font-size:12.5px; margin-bottom:6px;">
+<button onclick="saveWaypoint(${latlng.lat}, ${latlng.lng})" style="width:100%; padding:8px; border:none; border-radius:6px; background:#FBBF24; font-weight:700; font-size:12.5px; cursor:pointer;">บันทึกหมุด</button>
+</div>
+`)
+.openOn(leafletMap);
 }
-
 async function saveWaypoint(lat, lng){
-  const input = document.getElementById('wpLabelInput');
-  const label = (input && input.value.trim()) || 'จุดที่ปัก';
-  const wp = { id: uuid(), tripId: detailTrip.id, lat, lng, label, createdAt: new Date().toISOString() };
-  await idbPut('waypoints', wp);
-  detailWaypoints.push(wp);
-  renderWaypointMarker(wp);
-  leafletMap.closePopup();
-  toast('ปักหมุด "' + label + '" แล้ว');
+const input = document.getElementById('wpLabelInput');
+const label = (input && input.value.trim()) || 'จุดที่ปัก';
+const wp = { id: uuid(), tripId: detailTrip.id, lat, lng, label, createdAt: new Date().toISOString() };
+await idbPut('waypoints', wp);
+detailWaypoints.push(wp);
+renderWaypointMarker(wp);
+leafletMap.closePopup();
+toast('ปักหมุด "' + label + '" แล้ว');
 }
-
 function renderWaypointMarker(wp){
-  const m = L.marker([wp.lat, wp.lng], {icon: CUSTOM_ICON}).addTo(leafletMap);
-  m.bindPopup(`
-    <div style="font-family:Inter,sans-serif; font-size:12.5px;">
-      <b>${wp.label}</b><br>
-      <a href="#" onclick="deleteWaypoint('${wp.id}'); return false;" style="color:#F87171;">ลบหมุดนี้</a>
-    </div>
-  `);
-  waypointMarkers.push({id: wp.id, marker: m});
+const m = L.marker([wp.lat, wp.lng], {icon: CUSTOM_ICON}).addTo(leafletMap);
+m.bindPopup(`
+<div style="font-family:Inter,sans-serif; font-size:12.5px;">
+<b>${wp.label}</b><br>
+<a href="#" onclick="deleteWaypoint('${wp.id}'); return false;" style="color:#F87171;">ลบหมุดนี้</a>
+</div>
+`);
+waypointMarkers.push({id: wp.id, marker: m});
 }
-
 async function deleteWaypoint(id){
-  await idbDelete('waypoints', id);
-  detailWaypoints = detailWaypoints.filter(w=>w.id !== id);
-  const found = waypointMarkers.find(w=>w.id===id);
-  if(found){ leafletMap.removeLayer(found.marker); }
-  waypointMarkers = waypointMarkers.filter(w=>w.id !== id);
-  toast('ลบหมุดแล้ว');
+await idbDelete('waypoints', id);
+detailWaypoints = detailWaypoints.filter(w=>w.id !== id);
+const found = waypointMarkers.find(w=>w.id===id);
+if(found){ leafletMap.removeLayer(found.marker); }
+waypointMarkers = waypointMarkers.filter(w=>w.id !== id);
+toast('ลบหมุดแล้ว');
 }
-
 /* ---- Offline tile pre-caching ---- */
 function lon2tile(lon, z){ return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
 function lat2tile(lat, z){ return Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) + 1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, z)); }
-
 async function downloadOfflineTiles(){
-  if(!detailPoints || detailPoints.length < 1){ toast('ไม่มีพิกัดให้ดาวน์โหลด'); return; }
-  if(!navigator.onLine){ toast('ต้องมีอินเทอร์เน็ตตอนดาวน์โหลดแผนที่'); return; }
-
-  const lats = detailPoints.map(p=>p.lat), lngs = detailPoints.map(p=>p.lng);
-  const bounds = { minLat: Math.min(...lats), maxLat: Math.max(...lats), minLng: Math.min(...lngs), maxLng: Math.max(...lngs) };
-  const zooms = [13, 14, 15, 16];
-  const subdomains = ['a','b','c'];
-
-  let tiles = [];
-  zooms.forEach(z=>{
-    const x1 = lon2tile(bounds.minLng, z), x2 = lon2tile(bounds.maxLng, z);
-    const y1 = lat2tile(bounds.maxLat, z), y2 = lat2tile(bounds.minLat, z); // lat is inverted
-    for(let x = Math.min(x1,x2)-1; x <= Math.max(x1,x2)+1; x++){
-      for(let y = Math.min(y1,y2)-1; y <= Math.max(y1,y2)+1; y++){
-        tiles.push({x, y, z});
-      }
-    }
-  });
-
-  const btn = document.getElementById('downloadMapBtn');
-  const statusEl = document.getElementById('downloadMapStatus');
-  if(tiles.length > 900){
-    tiles = tiles.slice(0, 900);
-    statusEl.textContent = `เส้นทางยาว จะดาวน์โหลดเฉพาะ ${tiles.length} ไทล์แรก`;
-  }
-  btn.disabled = true;
-  let done = 0, failed = 0;
-  for(const t of tiles){
-    const s = subdomains[(t.x + t.y) % subdomains.length];
-    const url = `https://${s}.tile.openstreetmap.org/${t.z}/${t.x}/${t.y}.png`;
-    try{
-      await fetch(url); // triggers the service worker's fetch listener, which caches the tile
-    }catch(e){ failed++; }
-    done++;
-    if(done % 8 === 0 || done === tiles.length){
-      statusEl.textContent = `กำลังดาวน์โหลด... ${done}/${tiles.length} ไทล์`;
-    }
-  }
-  btn.disabled = false;
-  btn.textContent = '✅ ดาวน์โหลดแล้ว — โหลดซ้ำ';
-  statusEl.textContent = failed ? `เสร็จแล้ว (พลาด ${failed} ไทล์ ลองอีกครั้งได้)` : `พร้อมดูออฟไลน์แล้ว (${tiles.length} ไทล์)`;
-  toast('ดาวน์โหลดแผนที่เสร็จแล้ว');
+if(!detailPoints || detailPoints.length < 2){ toast('ไม่มีเส้นทางให้ดาวน์โหลด'); return; }
+if(!navigator.onLine){ toast('ต้องมีอินเทอร์เน็ตตอนดาวน์โหลดแผนที่'); return; }
+const lats = detailPoints.map(p=>p.lat), lngs = detailPoints.map(p=>p.lng);
+const bounds = { minLat: Math.min(...lats), maxLat: Math.max(...lats), minLng: Math.min(...lngs), maxLng: Math.max(...lngs) };
+const zooms = [13, 14, 15, 16];
+const subdomains = ['a','b','c'];
+let tiles = [];
+zooms.forEach(z=>{
+const x1 = lon2tile(bounds.minLng, z), x2 = lon2tile(bounds.maxLng, z);
+const y1 = lat2tile(bounds.maxLat, z), y2 = lat2tile(bounds.minLat, z); // lat is inverted
+for(let x = Math.min(x1,x2)-1; x <= Math.max(x1,x2)+1; x++){
+for(let y = Math.min(y1,y2)-1; y <= Math.max(y1,y2)+1; y++){
+tiles.push({x, y, z});
 }
-
+}
+});
+const btn = document.getElementById('downloadMapBtn');
+const statusEl = document.getElementById('downloadMapStatus');
+if(tiles.length > 900){
+tiles = tiles.slice(0, 900);
+statusEl.textContent = `เส้นทางยาว จะดาวน์โหลดเฉพาะ ${tiles.length} ไทล์แรก`;
+}
+btn.disabled = true;
+let done = 0, failed = 0;
+for(const t of tiles){
+const s = subdomains[(t.x + t.y) % subdomains.length];
+const url = `https://${s}.tile.openstreetmap.org/${t.z}/${t.x}/${t.y}.png`;
+try{
+await fetch(url); // triggers the service worker's fetch listener, which caches the tile
+}catch(e){ failed++; }
+done++;
+if(done % 8 === 0 || done === tiles.length){
+statusEl.textContent = `กำลังดาวน์โหลด... ${done}/${tiles.length} ไทล์`;
+}
+}
+btn.disabled = false;
+btn.textContent = '✅ ดาวน์โหลดแล้ว — โหลดซ้ำ';
+statusEl.textContent = failed ? `เสร็จแล้ว (พลาด ${failed} ไทล์ ลองอีกครั้งได้)` : `พร้อมดูออฟไลน์แล้ว (${tiles.length} ไทล์)`;
+toast('ดาวน์โหลดแผนที่เสร็จแล้ว');
+}
 function drawKmTable(perKm){
-  const el = document.getElementById('kmTable');
-  if(!perKm.length){ el.innerHTML = '<tr><td class="empty">ไม่มีข้อมูล</td></tr>'; return; }
-  el.innerHTML = `<tr><th>กม.ที่</th><th>เฉลี่ย</th><th>สูงสุด</th></tr>` +
-    perKm.map(r=>`<tr><td>${r.km}</td><td>${r.avgSpeedKmh}</td><td>${r.maxSpeedKmh}</td></tr>`).join('');
+const el = document.getElementById('kmTable');
+if(!perKm.length){ el.innerHTML = '<tr><td class="empty">ไม่มีข้อมูล</td></tr>'; return; }
+el.innerHTML = `<tr><th>กม.ที่</th><th>เฉลี่ย</th><th>สูงสุด</th></tr>` +
+perKm.map(r=>`<tr><td>${r.km}</td><td>${r.avgSpeedKmh}</td><td>${r.maxSpeedKmh}</td></tr>`).join('');
 }
-
 /* ================= Sync to Google Sheets ================= */
-// This is the Apps Script Web App URL the user provided — baked in as the default so sync
-// works out of the box. It can still be overridden from Settings if they ever redeploy.
-const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxa9O4VCzni6Nx3sJu0DObhYNop56BGotbD_B6MsqMKnterAfuuq8v9OGHzXZzfQEQ/exec';
-function getScriptUrl(){ return localStorage.getItem('tt_script_url') || DEFAULT_SCRIPT_URL; }
-
-// Core sync call — used by both the manual button and the silent auto-sync paths.
-// Returns {ok:true} or {ok:false, error, isTimeout}.
-async function performSync(trip, points){
-  const url = getScriptUrl();
-  const controller = new AbortController();
-  const timeoutMs = 25000;
-  const timer = setTimeout(()=> controller.abort(), timeoutMs);
-  try{
-    const res = await fetch(url, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ trip, trackpoints: points }),
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-    if(!res.ok) return { ok:false, error:`HTTP ${res.status}` };
-    const raw = await res.text();
-    let data;
-    try{ data = JSON.parse(raw); }
-    catch(e){ return { ok:false, error:'ได้ข้อมูลที่ไม่ใช่ JSON กลับมา (URL อาจ deploy ไม่ถูกต้อง)' }; }
-    if(data.ok === false) return { ok:false, error: data.error || 'sync failed' };
-    trip.synced = true;
-    await idbPut('trips', trip);
-    return { ok:true };
-  }catch(err){
-    clearTimeout(timer);
-    return { ok:false, error: err.name === 'AbortError' ? `หมดเวลารอ (${timeoutMs/1000}s)` : err.message, isTimeout: err.name === 'AbortError' };
-  }
-}
-
+function getScriptUrl(){ return localStorage.getItem('tt_script_url') || ''; }
 async function syncCurrentTrip(){
-  if(!navigator.onLine){ toast('ไม่มีอินเทอร์เน็ต ลองใหม่ภายหลัง'); return; }
-  const btn = document.getElementById('syncBtn');
-  btn.textContent = 'กำลังซิงก์...'; btn.disabled = true;
-
-  const result = await performSync(detailTrip, detailPoints);
-  if(result.ok){
-    btn.textContent = 'ซิงก์แล้ว — ซิงก์อีกครั้ง';
-    toast('ซิงก์ขึ้น Google Sheets สำเร็จ');
-  }else{
-    btn.textContent = 'ซิงก์ขึ้น Google Sheets';
-    toast('ซิงก์ไม่สำเร็จ: ' + result.error);
-  }
-  btn.disabled = false;
+const url = getScriptUrl();
+if(!url){ toast('ยังไม่ได้ตั้งค่า URL — กดไอคอนตั้งค่ามุมขวาบน'); openSettings(); return; }
+if(!navigator.onLine){ toast('ไม่มีอินเทอร์เน็ต ลองใหม่ภายหลัง'); return; }
+const btn = document.getElementById('syncBtn');
+btn.textContent = 'กำลังซิงก์...'; btn.disabled = true;
+const controller = new AbortController();
+const timeoutMs = 25000;
+const timer = setTimeout(()=> controller.abort(), timeoutMs);
+try{
+const res = await fetch(url, {
+method:'POST',
+headers:{'Content-Type':'text/plain;charset=utf-8'},
+body: JSON.stringify({ trip: detailTrip, trackpoints: detailPoints }),
+signal: controller.signal
+});
+clearTimeout(timer);
+if(!res.ok){
+throw new Error(`เซิร์ฟเวอร์ตอบกลับผิดปกติ (HTTP ${res.status}) — ตรวจว่า deploy เป็น "Anyone" แล้วหรือยัง`);
 }
-
-// Called right after a trip is saved — syncs it in the background with no button/UI involved.
-async function autoSyncTrip(tripId){
-  if(!navigator.onLine) return;
-  const trips = await idbGetAll('trips');
-  const trip = trips.find(t=>t.id===tripId);
-  if(!trip || trip.synced) return;
-  const points = await idbGetAllByIndex('trackpoints', 'tripId', tripId);
-  const result = await performSync(trip, points);
-  if(result.ok){ toast('ซิงก์ทริปขึ้น Google Sheets อัตโนมัติแล้ว'); renderHistory(); }
-  // Silent on failure here — it'll be retried by autoSyncPendingTrips() next time the app opens.
+const raw = await res.text();
+let data;
+try{ data = JSON.parse(raw); }
+catch(parseErr){
+throw new Error('ได้รับข้อมูลที่ไม่ใช่ JSON กลับมา — มักแปลว่า URL ยังไม่ได้ deploy เป็น Web app ที่ถูกต้อง หรือ Apps Script มี error');
 }
-
-// Called on app start — quietly retries any trip that never made it up (e.g. was offline).
-async function autoSyncPendingTrips(){
-  if(!navigator.onLine) return;
-  const trips = await idbGetAll('trips');
-  const pending = trips.filter(t=>!t.synced);
-  if(!pending.length) return;
-  let synced = 0;
-  for(const trip of pending){
-    const points = await idbGetAllByIndex('trackpoints', 'tripId', trip.id);
-    const result = await performSync(trip, points);
-    if(result.ok) synced++;
-  }
-  if(synced){ toast(`ซิงก์ทริปค้างอยู่ ${synced} รายการสำเร็จ`); renderHistory(); }
+if(data.ok === false) throw new Error(data.error || 'sync failed');
+detailTrip.synced = true;
+await idbPut('trips', detailTrip);
+btn.textContent = 'ซิงก์แล้ว — ซิงก์อีกครั้ง';
+toast('ซิงก์ขึ้น Google Sheets สำเร็จ');
+}catch(err){
+clearTimeout(timer);
+console.error(err);
+btn.textContent = 'ซิงก์ขึ้น Google Sheets';
+if(err.name === 'AbortError'){
+toast(`หมดเวลารอ (${timeoutMs/1000}s) — เซิร์ฟเวอร์ตอบช้าเกินไป ลองใหม่อีกครั้ง`);
+} else {
+toast('ซิงก์ไม่สำเร็จ: ' + err.message);
 }
-
+}
+btn.disabled = false;
+}
+/* ================= Delete trip ================= */
+const PENDING_DELETE_KEY = 'tt_pending_deletes';
+function getPendingDeletes(){
+try{ return JSON.parse(localStorage.getItem(PENDING_DELETE_KEY) || '[]'); }catch(e){ return []; }
+}
+function setPendingDeletes(list){ localStorage.setItem(PENDING_DELETE_KEY, JSON.stringify(list)); }
+function queuePendingDelete(tripId){
+const list = getPendingDeletes();
+if(!list.includes(tripId)){ list.push(tripId); setPendingDeletes(list); }
+}
+async function remoteDeleteTrip(tripId){
+const url = getScriptUrl();
+if(!url) return { ok:false, reason:'no-url' };
+const controller = new AbortController();
+const timer = setTimeout(()=> controller.abort(), 20000);
+try{
+const res = await fetch(url, {
+method:'POST',
+headers:{'Content-Type':'text/plain;charset=utf-8'},
+body: JSON.stringify({ action:'delete', tripId }),
+signal: controller.signal
+});
+clearTimeout(timer);
+if(!res.ok) return { ok:false, reason:'http-'+res.status };
+const data = await res.json().catch(()=>null);
+if(!data || data.ok === false) return { ok:false, reason:(data&&data.error)||'unknown' };
+return { ok:true };
+}catch(err){
+clearTimeout(timer);
+return { ok:false, reason: err.name==='AbortError' ? 'timeout' : String(err) };
+}
+}
+async function processPendingDeletes(){
+if(!navigator.onLine) return;
+const list = getPendingDeletes();
+if(!list.length) return;
+const url = getScriptUrl();
+if(!url) return;
+const stillPending = [];
+for(const tripId of list){
+const r = await remoteDeleteTrip(tripId);
+if(!r.ok) stillPending.push(tripId);
+}
+setPendingDeletes(stillPending);
+if(stillPending.length < list.length) toast('ซิงก์การลบค้างไว้ขึ้น Google Sheets สำเร็จแล้ว');
+}
+// Removes a trip and everything tied to it (trackpoints, waypoints) from IndexedDB.
+async function deleteTripLocal(tripId){
+await idbDelete('trips', tripId);
+await idbDeleteAllByIndex('trackpoints', 'tripId', tripId);
+await idbDeleteAllByIndex('waypoints', 'tripId', tripId);
+}
+// Deletes locally first (always succeeds offline), then tries to delete the same
+// trip on the Google Sheets side. If that fails (offline, script down, etc.) the
+// tripId is queued and retried automatically next time we're online.
+async function deleteTripEverywhere(trip){
+await deleteTripLocal(trip.id);
+if(!getScriptUrl()){ return; } // sync was never configured — nothing to delete remotely
+if(!trip.synced && !navigator.onLine){ return; } // never synced and offline — nothing to clean up remotely
+if(!navigator.onLine){ queuePendingDelete(trip.id); toast('ลบในเครื่องแล้ว จะลบใน Google Sheets ให้อัตโนมัติเมื่อมีเน็ต'); return; }
+const r = await remoteDeleteTrip(trip.id);
+if(!r.ok){ queuePendingDelete(trip.id); toast('ลบในเครื่องแล้ว แต่ลบใน Google Sheets ไม่สำเร็จ จะลองใหม่อัตโนมัติ'); }
+}
+async function deleteTrip(id, evt){
+if(evt) evt.stopPropagation();
+const trips = await idbGetAll('trips');
+const trip = trips.find(t=>t.id===id);
+if(!trip) return;
+if(!confirm('ลบทริปนี้ถาวร? (' + trip.distanceKm.toFixed(2) + ' กม.)')) return;
+await deleteTripEverywhere(trip);
+toast('ลบทริปแล้ว');
+renderHistory();
+}
+async function deleteCurrentTrip(){
+if(!detailTrip) return;
+if(!confirm('ลบทริปนี้ถาวร? (' + detailTrip.distanceKm.toFixed(2) + ' กม.) การลบนี้ย้อนกลับไม่ได้')) return;
+const trip = detailTrip;
+await deleteTripEverywhere(trip);
+detailTrip = null; detailPoints = null; detailWaypoints = null;
+toast('ลบทริปแล้ว');
+showView('history');
+}
 /* ================= Settings modal ================= */
 function openSettings(){
-  document.getElementById('scriptUrlInput').value = getScriptUrl();
-  refreshPinStatusText();
-  document.getElementById('settingsModal').classList.add('show');
+document.getElementById('scriptUrlInput').value = getScriptUrl();
+document.getElementById('settingsModal').classList.add('show');
 }
 function closeSettings(){ document.getElementById('settingsModal').classList.remove('show'); }
 function saveSettings(){
-  const v = document.getElementById('scriptUrlInput').value.trim();
-  if(v) localStorage.setItem('tt_script_url', v);
-  else localStorage.removeItem('tt_script_url'); // falls back to DEFAULT_SCRIPT_URL
-  toast('บันทึกการตั้งค่าแล้ว');
-  closeSettings();
+const v = document.getElementById('scriptUrlInput').value.trim();
+localStorage.setItem('tt_script_url', v);
+toast('บันทึกการตั้งค่าแล้ว');
+closeSettings();
 }
-function refreshPinStatusText(){
-  const has = !!localStorage.getItem('tt_pin');
-  document.getElementById('pinStatusText').textContent = has
-    ? 'ตอนนี้เปิดล็อกด้วย PIN อยู่ ทุกครั้งที่เปิดแอปต้องกรอกรหัส'
-    : 'ยังไม่ได้ตั้งรหัส PIN — ใครก็เปิดแอปดูข้อมูลได้';
-  document.getElementById('pinRemoveBtn').style.display = has ? 'block' : 'none';
-}
-function startPinChange(){
-  closeSettings();
-  pinTempFirst = null;
-  pinMode = 'setup1';
-  document.getElementById('lockTitle').textContent = 'ตั้งรหัส PIN ใหม่ (4 หลัก)';
-  document.getElementById('lockSub').textContent = 'ใช้ล็อกแอปนี้บนเครื่องนี้';
-  document.getElementById('lockError').textContent = '';
-  pinInput = ''; renderPinDots();
-  document.getElementById('lockScreen').classList.add('show');
-}
-function removePinFromSettings(){
-  if(!confirm('ปิดการล็อกด้วย PIN? ใครก็เปิดแอปนี้ดูข้อมูลทริปได้โดยไม่ต้องใส่รหัส')) return;
-  localStorage.removeItem('tt_pin');
-  refreshPinStatusText();
-  toast('ปิดการล็อกแล้ว');
-}
-
-/* ================= PIN Lock ================= */
-let pinInput = '';
-let pinMode = 'unlock'; // 'unlock' | 'setup1' | 'setup2'
-let pinTempFirst = null;
-
-function renderPinDots(){
-  const dots = document.querySelectorAll('#pinDots .pin-dot');
-  dots.forEach((d,i)=> d.classList.toggle('filled', i < pinInput.length));
-}
-function pinPress(digit){
-  if(pinInput.length >= 4) return;
-  pinInput += digit;
-  renderPinDots();
-  if(pinInput.length === 4) setTimeout(processPinEntry, 120);
-}
-function pinBackspace(){
-  pinInput = pinInput.slice(0, -1);
-  renderPinDots();
-}
-function pinError(msg){
-  document.getElementById('lockError').textContent = msg;
-  const inner = document.querySelector('.lock-inner');
-  inner.classList.add('shake');
-  setTimeout(()=> inner.classList.remove('shake'), 400);
-  pinInput = ''; renderPinDots();
-}
-function pinForgot(){
-  if(pinMode !== 'unlock') return; // only relevant when locked out
-  if(!confirm('ล้างรหัส PIN เดิม? ข้อมูลทริปยังอยู่ครบ แค่จะปิดการล็อกแอปนี้ ต้องตั้งรหัสใหม่ภายหลังเอง')) return;
-  localStorage.removeItem('tt_pin');
-  hideLockScreen();
-  toast('ล้างรหัส PIN แล้ว');
-}
-async function processPinEntry(){
-  if(pinMode === 'unlock'){
-    const stored = localStorage.getItem('tt_pin');
-    if(pinInput === stored){ hideLockScreen(); }
-    else{ pinError('รหัสไม่ถูกต้อง ลองใหม่'); }
-  }else if(pinMode === 'setup1'){
-    pinTempFirst = pinInput;
-    pinMode = 'setup2';
-    pinInput = ''; renderPinDots();
-    document.getElementById('lockTitle').textContent = 'กรอกรหัสอีกครั้งเพื่อยืนยัน';
-  }else if(pinMode === 'setup2'){
-    if(pinInput === pinTempFirst){
-      localStorage.setItem('tt_pin', pinInput);
-      hideLockScreen();
-      toast('ตั้งรหัส PIN สำเร็จ');
-    }else{
-      pinError('รหัสไม่ตรงกัน ลองตั้งใหม่');
-      pinMode = 'setup1';
-      document.getElementById('lockTitle').textContent = 'ตั้งรหัส PIN ใหม่ (4 หลัก)';
-    }
-  }
-}
-function hideLockScreen(){
-  document.getElementById('lockScreen').classList.remove('show');
-  pinInput = ''; renderPinDots();
-}
-function initLockScreen(){
-  const stored = localStorage.getItem('tt_pin');
-  pinInput = ''; renderPinDots();
-  document.getElementById('lockError').textContent = '';
-  if(stored){
-    pinMode = 'unlock';
-    document.getElementById('lockTitle').textContent = 'กรอกรหัส PIN';
-    document.getElementById('lockSub').textContent = 'ปกป้องข้อมูลทริปของคุณ';
-    document.getElementById('lockScreen').classList.add('show');
-  }
-  // If no PIN is set, the app just runs unlocked — nothing to show.
-}
-
 /* ================= Init ================= */
 (async function init(){
-  await openDB();
-  renderHistory();
-  initLockScreen();
-  if('serviceWorker' in navigator){
-    try{ await navigator.serviceWorker.register('sw.js'); }catch(e){ console.warn('SW register failed', e); }
-  }
-  autoSyncPendingTrips();
+await openDB();
+renderHistory();
+if('serviceWorker' in navigator){
+try{ await navigator.serviceWorker.register('sw.js'); }catch(e){ console.warn('SW register failed', e); }
+}
+processPendingDeletes();
+window.addEventListener('online', processPendingDeletes);
 })();
 </script>
 </body>
