@@ -519,8 +519,12 @@ async function openDetail(id){
 function drawChart(points, maxSpeed){
   const wrap = document.getElementById('chartWrap');
   if(points.length < 2){ wrap.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับกราฟ</div>'; return; }
+  const maxD = points[points.length-1].distanceFromStartKm || 0;
+  if(maxD <= 0.001){
+    wrap.innerHTML = '<div class="empty">ทริปนี้ไม่มีระยะทางเคลื่อนที่ (GPS อยู่นิ่งจุดเดียวตลอด) จึงไม่มีกราฟให้แสดง</div>';
+    return;
+  }
   const W = wrap.clientWidth || 300, H = 180, pad = {l:34, r:10, t:10, b:24};
-  const maxD = points[points.length-1].distanceFromStartKm || 1;
   const maxS = Math.max(maxSpeed, 10);
   const x = d => pad.l + (d/maxD) * (W-pad.l-pad.r);
   const y = s => H-pad.b - (s/maxS) * (H-pad.t-pad.b);
@@ -580,6 +584,18 @@ function drawMap(points, maxSpeed){
   waypointMarkers = [];
   if(points.length < 2){ mapEl.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับแผนที่</div>'; return; }
   mapEl.innerHTML = '';
+
+  const totalDist = points[points.length-1].distanceFromStartKm || 0;
+  const stillNoticeEl = document.getElementById('mapStillNotice');
+  if(stillNoticeEl) stillNoticeEl.remove();
+  if(totalDist <= 0.001){
+    const notice = document.createElement('div');
+    notice.id = 'mapStillNotice';
+    notice.className = 'hint';
+    notice.style.cssText = 'text-align:left; margin-bottom:10px;';
+    notice.textContent = '📍 GPS อยู่นิ่งจุดเดียวตลอดทริป จึงไม่มีเส้นทางให้ไล่สี เห็นแค่หมุดต้นทาง/ปลายทางซ้อนกันที่จุดเดียว';
+    mapEl.parentNode.insertBefore(notice, mapEl);
+  }
 
   leafletMap = L.map('map', {zoomControl:false, attributionControl:true});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
