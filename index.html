@@ -156,10 +156,55 @@
   .modal .row .cta{padding:14px;}
 
   svg text{font-family:var(--mono);}
+
+  /* ---- PIN Lock ---- */
+  .lock-screen{
+    position:fixed; inset:0; z-index:200; background:var(--bg);
+    display:none; align-items:center; justify-content:center; flex-direction:column;
+  }
+  .lock-screen.show{display:flex;}
+  .lock-inner{display:flex; flex-direction:column; align-items:center; padding:20px; max-width:320px; width:100%;}
+  .lock-icon{font-size:34px; margin-bottom:10px;}
+  .lock-title{font-family:var(--mono); font-weight:700; font-size:17px;}
+  .lock-sub{color:var(--muted); font-size:12.5px; margin-top:6px; text-align:center;}
+  .pin-dots{display:flex; gap:14px; margin:26px 0 8px;}
+  .pin-dot{width:14px; height:14px; border-radius:50%; border:1.5px solid var(--line); background:transparent; transition:background .15s, border-color .15s;}
+  .pin-dot.filled{background:var(--amber); border-color:var(--amber);}
+  .lock-error{color:var(--danger); font-size:12px; height:16px; margin-bottom:10px;}
+  .keypad{display:grid; grid-template-columns:repeat(3,64px); gap:14px; margin-top:8px;}
+  .keypad button{
+    width:64px; height:64px; border-radius:50%; border:1px solid var(--line); background:var(--surface);
+    color:var(--text); font-family:var(--mono); font-size:20px; font-weight:600; cursor:pointer;
+  }
+  .keypad button:active{background:var(--surface-2);}
+  .keypad button.ghostkey{background:transparent; border:none; color:var(--muted); font-size:13px; font-weight:500;}
+  .shake{animation:shake .35s;}
+  @keyframes shake{
+    10%,90%{transform:translateX(-2px);} 20%,80%{transform:translateX(4px);}
+    30%,50%,70%{transform:translateX(-8px);} 40%,60%{transform:translateX(8px);}
+  }
 </style>
 </head>
 <body>
 <div class="bg-noise"></div>
+
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-inner">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title" id="lockTitle">กรอกรหัส PIN</div>
+    <div class="lock-sub" id="lockSub">ปกป้องข้อมูลทริปของคุณ</div>
+    <div class="pin-dots" id="pinDots">
+      <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
+    </div>
+    <div class="lock-error" id="lockError"></div>
+    <div class="keypad">
+      <button onclick="pinPress('1')">1</button><button onclick="pinPress('2')">2</button><button onclick="pinPress('3')">3</button>
+      <button onclick="pinPress('4')">4</button><button onclick="pinPress('5')">5</button><button onclick="pinPress('6')">6</button>
+      <button onclick="pinPress('7')">7</button><button onclick="pinPress('8')">8</button><button onclick="pinPress('9')">9</button>
+      <button class="ghostkey" onclick="pinForgot()">ลืม?</button><button onclick="pinPress('0')">0</button><button class="ghostkey" onclick="pinBackspace()">⌫</button>
+    </div>
+  </div>
+</div>
 
 <header class="topbar">
   <div class="brand">
@@ -267,11 +312,18 @@
 <div class="modal-back" id="settingsModal">
   <div class="modal">
     <h3>ตั้งค่า Google Sheets Sync</h3>
-    <p>วาง URL ของ Google Apps Script Web App (ดูวิธี deploy ใน README) เพื่อให้ปุ่มซิงก์ทำงาน</p>
+    <p>ตั้งค่าไว้ให้แล้ว ทริปจะซิงก์ขึ้นชีตอัตโนมัติทุกครั้งที่กดจบทริป (ถ้ามีเน็ต) — แก้ URL ได้ถ้าต้องการเปลี่ยนปลายทาง</p>
     <input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/xxxx/exec">
     <div class="row">
       <button class="cta ghost" style="flex:1" onclick="closeSettings()">ปิด</button>
       <button class="cta start" style="flex:1" onclick="saveSettings()">บันทึก</button>
+    </div>
+    <div style="height:1px; background:var(--line); margin:18px 0;"></div>
+    <h3 style="margin-bottom:4px;">ล็อกแอปด้วยรหัส PIN</h3>
+    <p id="pinStatusText">กำลังตรวจสอบ...</p>
+    <div class="row">
+      <button class="cta ghost" style="flex:1" onclick="startPinChange()" id="pinToggleBtn">ตั้ง/เปลี่ยนรหัส PIN</button>
+      <button class="cta ghost" style="flex:1; color:var(--danger);" onclick="removePinFromSettings()" id="pinRemoveBtn">ปิดการล็อก</button>
     </div>
   </div>
 </div>
@@ -444,6 +496,7 @@ async function stopTrip(){
   document.getElementById('liveAvg').textContent = '0.0';
   document.getElementById('liveMax').textContent = '0.0';
   renderHistory();
+  autoSyncTrip(trip.id); // fire-and-forget: syncs in the background if online, retried later if not
 }
 
 function buildPerKmBreakdown(points, totalKm){
@@ -723,77 +776,203 @@ function drawKmTable(perKm){
 }
 
 /* ================= Sync to Google Sheets ================= */
-function getScriptUrl(){ return localStorage.getItem('tt_script_url') || ''; }
+// This is the Apps Script Web App URL the user provided — baked in as the default so sync
+// works out of the box. It can still be overridden from Settings if they ever redeploy.
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxa9O4VCzni6Nx3sJu0DObhYNop56BGotbD_B6MsqMKnterAfuuq8v9OGHzXZzfQEQ/exec';
+function getScriptUrl(){ return localStorage.getItem('tt_script_url') || DEFAULT_SCRIPT_URL; }
 
-async function syncCurrentTrip(){
+// Core sync call — used by both the manual button and the silent auto-sync paths.
+// Returns {ok:true} or {ok:false, error, isTimeout}.
+async function performSync(trip, points){
   const url = getScriptUrl();
-  if(!url){ toast('ยังไม่ได้ตั้งค่า URL — กดไอคอนตั้งค่ามุมขวาบน'); openSettings(); return; }
-  if(!navigator.onLine){ toast('ไม่มีอินเทอร์เน็ต ลองใหม่ภายหลัง'); return; }
-
-  const btn = document.getElementById('syncBtn');
-  btn.textContent = 'กำลังซิงก์...'; btn.disabled = true;
-
   const controller = new AbortController();
   const timeoutMs = 25000;
   const timer = setTimeout(()=> controller.abort(), timeoutMs);
-
   try{
     const res = await fetch(url, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ trip: detailTrip, trackpoints: detailPoints }),
+      body: JSON.stringify({ trip, trackpoints: points }),
       signal: controller.signal
     });
     clearTimeout(timer);
-
-    if(!res.ok){
-      throw new Error(`เซิร์ฟเวอร์ตอบกลับผิดปกติ (HTTP ${res.status}) — ตรวจว่า deploy เป็น "Anyone" แล้วหรือยัง`);
-    }
+    if(!res.ok) return { ok:false, error:`HTTP ${res.status}` };
     const raw = await res.text();
     let data;
     try{ data = JSON.parse(raw); }
-    catch(parseErr){
-      throw new Error('ได้รับข้อมูลที่ไม่ใช่ JSON กลับมา — มักแปลว่า URL ยังไม่ได้ deploy เป็น Web app ที่ถูกต้อง หรือ Apps Script มี error');
-    }
-    if(data.ok === false) throw new Error(data.error || 'sync failed');
-
-    detailTrip.synced = true;
-    await idbPut('trips', detailTrip);
-    btn.textContent = 'ซิงก์แล้ว — ซิงก์อีกครั้ง';
-    toast('ซิงก์ขึ้น Google Sheets สำเร็จ');
+    catch(e){ return { ok:false, error:'ได้ข้อมูลที่ไม่ใช่ JSON กลับมา (URL อาจ deploy ไม่ถูกต้อง)' }; }
+    if(data.ok === false) return { ok:false, error: data.error || 'sync failed' };
+    trip.synced = true;
+    await idbPut('trips', trip);
+    return { ok:true };
   }catch(err){
     clearTimeout(timer);
-    console.error(err);
+    return { ok:false, error: err.name === 'AbortError' ? `หมดเวลารอ (${timeoutMs/1000}s)` : err.message, isTimeout: err.name === 'AbortError' };
+  }
+}
+
+async function syncCurrentTrip(){
+  if(!navigator.onLine){ toast('ไม่มีอินเทอร์เน็ต ลองใหม่ภายหลัง'); return; }
+  const btn = document.getElementById('syncBtn');
+  btn.textContent = 'กำลังซิงก์...'; btn.disabled = true;
+
+  const result = await performSync(detailTrip, detailPoints);
+  if(result.ok){
+    btn.textContent = 'ซิงก์แล้ว — ซิงก์อีกครั้ง';
+    toast('ซิงก์ขึ้น Google Sheets สำเร็จ');
+  }else{
     btn.textContent = 'ซิงก์ขึ้น Google Sheets';
-    if(err.name === 'AbortError'){
-      toast(`หมดเวลารอ (${timeoutMs/1000}s) — เซิร์ฟเวอร์ตอบช้าเกินไป ลองใหม่อีกครั้ง`);
-    } else {
-      toast('ซิงก์ไม่สำเร็จ: ' + err.message);
-    }
+    toast('ซิงก์ไม่สำเร็จ: ' + result.error);
   }
   btn.disabled = false;
+}
+
+// Called right after a trip is saved — syncs it in the background with no button/UI involved.
+async function autoSyncTrip(tripId){
+  if(!navigator.onLine) return;
+  const trips = await idbGetAll('trips');
+  const trip = trips.find(t=>t.id===tripId);
+  if(!trip || trip.synced) return;
+  const points = await idbGetAllByIndex('trackpoints', 'tripId', tripId);
+  const result = await performSync(trip, points);
+  if(result.ok){ toast('ซิงก์ทริปขึ้น Google Sheets อัตโนมัติแล้ว'); renderHistory(); }
+  // Silent on failure here — it'll be retried by autoSyncPendingTrips() next time the app opens.
+}
+
+// Called on app start — quietly retries any trip that never made it up (e.g. was offline).
+async function autoSyncPendingTrips(){
+  if(!navigator.onLine) return;
+  const trips = await idbGetAll('trips');
+  const pending = trips.filter(t=>!t.synced);
+  if(!pending.length) return;
+  let synced = 0;
+  for(const trip of pending){
+    const points = await idbGetAllByIndex('trackpoints', 'tripId', trip.id);
+    const result = await performSync(trip, points);
+    if(result.ok) synced++;
+  }
+  if(synced){ toast(`ซิงก์ทริปค้างอยู่ ${synced} รายการสำเร็จ`); renderHistory(); }
 }
 
 /* ================= Settings modal ================= */
 function openSettings(){
   document.getElementById('scriptUrlInput').value = getScriptUrl();
+  refreshPinStatusText();
   document.getElementById('settingsModal').classList.add('show');
 }
 function closeSettings(){ document.getElementById('settingsModal').classList.remove('show'); }
 function saveSettings(){
   const v = document.getElementById('scriptUrlInput').value.trim();
-  localStorage.setItem('tt_script_url', v);
+  if(v) localStorage.setItem('tt_script_url', v);
+  else localStorage.removeItem('tt_script_url'); // falls back to DEFAULT_SCRIPT_URL
   toast('บันทึกการตั้งค่าแล้ว');
   closeSettings();
+}
+function refreshPinStatusText(){
+  const has = !!localStorage.getItem('tt_pin');
+  document.getElementById('pinStatusText').textContent = has
+    ? 'ตอนนี้เปิดล็อกด้วย PIN อยู่ ทุกครั้งที่เปิดแอปต้องกรอกรหัส'
+    : 'ยังไม่ได้ตั้งรหัส PIN — ใครก็เปิดแอปดูข้อมูลได้';
+  document.getElementById('pinRemoveBtn').style.display = has ? 'block' : 'none';
+}
+function startPinChange(){
+  closeSettings();
+  pinTempFirst = null;
+  pinMode = 'setup1';
+  document.getElementById('lockTitle').textContent = 'ตั้งรหัส PIN ใหม่ (4 หลัก)';
+  document.getElementById('lockSub').textContent = 'ใช้ล็อกแอปนี้บนเครื่องนี้';
+  document.getElementById('lockError').textContent = '';
+  pinInput = ''; renderPinDots();
+  document.getElementById('lockScreen').classList.add('show');
+}
+function removePinFromSettings(){
+  if(!confirm('ปิดการล็อกด้วย PIN? ใครก็เปิดแอปนี้ดูข้อมูลทริปได้โดยไม่ต้องใส่รหัส')) return;
+  localStorage.removeItem('tt_pin');
+  refreshPinStatusText();
+  toast('ปิดการล็อกแล้ว');
+}
+
+/* ================= PIN Lock ================= */
+let pinInput = '';
+let pinMode = 'unlock'; // 'unlock' | 'setup1' | 'setup2'
+let pinTempFirst = null;
+
+function renderPinDots(){
+  const dots = document.querySelectorAll('#pinDots .pin-dot');
+  dots.forEach((d,i)=> d.classList.toggle('filled', i < pinInput.length));
+}
+function pinPress(digit){
+  if(pinInput.length >= 4) return;
+  pinInput += digit;
+  renderPinDots();
+  if(pinInput.length === 4) setTimeout(processPinEntry, 120);
+}
+function pinBackspace(){
+  pinInput = pinInput.slice(0, -1);
+  renderPinDots();
+}
+function pinError(msg){
+  document.getElementById('lockError').textContent = msg;
+  const inner = document.querySelector('.lock-inner');
+  inner.classList.add('shake');
+  setTimeout(()=> inner.classList.remove('shake'), 400);
+  pinInput = ''; renderPinDots();
+}
+function pinForgot(){
+  if(pinMode !== 'unlock') return; // only relevant when locked out
+  if(!confirm('ล้างรหัส PIN เดิม? ข้อมูลทริปยังอยู่ครบ แค่จะปิดการล็อกแอปนี้ ต้องตั้งรหัสใหม่ภายหลังเอง')) return;
+  localStorage.removeItem('tt_pin');
+  hideLockScreen();
+  toast('ล้างรหัส PIN แล้ว');
+}
+async function processPinEntry(){
+  if(pinMode === 'unlock'){
+    const stored = localStorage.getItem('tt_pin');
+    if(pinInput === stored){ hideLockScreen(); }
+    else{ pinError('รหัสไม่ถูกต้อง ลองใหม่'); }
+  }else if(pinMode === 'setup1'){
+    pinTempFirst = pinInput;
+    pinMode = 'setup2';
+    pinInput = ''; renderPinDots();
+    document.getElementById('lockTitle').textContent = 'กรอกรหัสอีกครั้งเพื่อยืนยัน';
+  }else if(pinMode === 'setup2'){
+    if(pinInput === pinTempFirst){
+      localStorage.setItem('tt_pin', pinInput);
+      hideLockScreen();
+      toast('ตั้งรหัส PIN สำเร็จ');
+    }else{
+      pinError('รหัสไม่ตรงกัน ลองตั้งใหม่');
+      pinMode = 'setup1';
+      document.getElementById('lockTitle').textContent = 'ตั้งรหัส PIN ใหม่ (4 หลัก)';
+    }
+  }
+}
+function hideLockScreen(){
+  document.getElementById('lockScreen').classList.remove('show');
+  pinInput = ''; renderPinDots();
+}
+function initLockScreen(){
+  const stored = localStorage.getItem('tt_pin');
+  pinInput = ''; renderPinDots();
+  document.getElementById('lockError').textContent = '';
+  if(stored){
+    pinMode = 'unlock';
+    document.getElementById('lockTitle').textContent = 'กรอกรหัส PIN';
+    document.getElementById('lockSub').textContent = 'ปกป้องข้อมูลทริปของคุณ';
+    document.getElementById('lockScreen').classList.add('show');
+  }
+  // If no PIN is set, the app just runs unlocked — nothing to show.
 }
 
 /* ================= Init ================= */
 (async function init(){
   await openDB();
   renderHistory();
+  initLockScreen();
   if('serviceWorker' in navigator){
     try{ await navigator.serviceWorker.register('sw.js'); }catch(e){ console.warn('SW register failed', e); }
   }
+  autoSyncPendingTrips();
 })();
 </script>
 </body>
