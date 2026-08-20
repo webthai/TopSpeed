@@ -103,7 +103,47 @@ function replaceTrackpointsForTrip_(sheet, tripId, newRows) {
 }
 
 function doGet(e) {
+  const action = e.parameter && e.parameter.action;
+
+  if (action === 'list') {
+    return jsonResponse_({ ok: true, trips: getAllTrips_() });
+  }
+
+  if (action === 'trip') {
+    const id = e.parameter.id;
+    if (!id) return jsonResponse_({ ok: false, error: 'missing id' });
+    const trip = getAllTrips_().find(t => t.id === id);
+    if (!trip) return jsonResponse_({ ok: false, error: 'trip not found' });
+    return jsonResponse_({ ok: true, trip: trip, trackpoints: getTrackpointsForTrip_(id) });
+  }
+
   return jsonResponse_({ ok: true, message: 'Trip Tracker backend is running.' });
+}
+
+function getAllTrips_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(TRIPS_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, TRIPS_HEADERS.length).getValues();
+  return data
+    .filter(row => row[0]) // skip any blank rows
+    .map(row => ({
+      id: row[0], startTime: row[1], endTime: row[2], distanceKm: row[3],
+      avgSpeedKmh: row[4], maxSpeedKmh: row[5], perKmBreakdown: row[6], syncedAt: row[7]
+    }));
+}
+
+function getTrackpointsForTrip_(tripId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(TRACKPOINTS_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, TRACKPOINTS_HEADERS.length).getValues();
+  return data
+    .filter(row => row[1] === tripId)
+    .map(row => ({
+      id: row[0], tripId: row[1], lat: row[2], lng: row[3],
+      speedKmh: row[4], timestamp: row[5], distanceFromStartKm: row[6]
+    }));
 }
 
 function jsonResponse_(obj) {

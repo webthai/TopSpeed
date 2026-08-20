@@ -477,7 +477,7 @@ async function stopTrip(){
   document.getElementById('gpsStatus').textContent = 'GPS: รอสัญญาณ';
   document.getElementById('gpsStatus').classList.remove('live');
 
-  if(!t || t.points.length < 2){ toast('ทริปสั้นเกินไป ไม่บันทึก'); renderHistory(); return; }
+  if(!t || t.points.length < 1){ toast('ไม่มีจุดพิกัดที่บันทึกได้ ลองใหม่'); renderHistory(); return; }
 
   const perKm = buildPerKmBreakdown(t.points, t.distanceKm);
   const trip = {
@@ -491,7 +491,13 @@ async function stopTrip(){
     synced: false
   };
   await idbPut('trips', trip);
-  toast('บันทึกทริปแล้ว (' + trip.distanceKm + ' กม.)');
+  if(!navigator.onLine){
+    toast('บันทึกทริปแล้ว (ออฟไลน์ — จะซิงก์ให้อัตโนมัติเมื่อมีเน็ต)');
+  }else if(t.points.length === 1){
+    toast('บันทึกทริปแล้ว (จุดเดียว, สั้นมาก)');
+  }else{
+    toast('บันทึกทริปแล้ว (' + trip.distanceKm + ' กม.)');
+  }
   document.getElementById('liveDist').textContent = '0.00 กม.';
   document.getElementById('liveAvg').textContent = '0.0';
   document.getElementById('liveMax').textContent = '0.0';
@@ -528,46 +534,113 @@ function showView(name){
 
 /* ================= History ================= */
 async function renderHistory(){
-  const trips = (await idbGetAll('trips')).sort((a,b)=> new Date(b.startTime) - new Date(a.startTime));
   const el = document.getElementById('tripList');
-  if(!trips.length){ el.innerHTML = '<div class="empty">ยังไม่มีทริปที่บันทึกไว้<br>กด "เริ่มทริป" ที่หน้าแรกเพื่อเริ่มเก็บพิกัด</div>'; return; }
-  el.innerHTML = trips.map(t=>`
-    <div class="trip-item" onclick="openDetail('${t.id}')">
+  el.innerHTML = '<div class="empty">กำลังโหลดประวัติ...</div>';
+
+  const localTrips = await idbGetAll('trips');
+
+  // Also pull from Google Sheets so history shows up even with no local IndexedDB data
+  // (fresh device, incognito/private mode, or storage was cleared) — local copies win on conflict.
+  let remoteTrips = [];
+  if(navigator.onLine){
+    remoteTrips = await fetchRemoteTrips();
+  }
+  const localIds = new Set(localTrips.map(t=>t.id));
+  const merged = [
+    ...localTrips.map(t=>({...t, _remote:false})),
+    ...remoteTrips.filter(t=>!localIds.has(t.id)).map(t=>({...t, synced:true, _remote:true}))
+  ].sort((a,b)=> new Date(b.startTime) - new Date(a.startTime));
+
+  if(!merged.length){ el.innerHTML = '<div class="empty">ยังไม่มีทริปที่บันทึกไว้<br>กด "เริ่มทริป" ที่หน้าแรกเพื่อเริ่มเก็บพิกัด</div>'; return; }
+  el.innerHTML = merged.map(t=>`
+    <div class="trip-item" onclick="openDetail('${t.id}', ${t._remote})">
       <div class="l">
         <div class="date">${fmtDate(t.startTime)}</div>
         <div class="meta">เฉลี่ย ${t.avgSpeedKmh} · สูงสุด ${t.maxSpeedKmh} กม./ชม.</div>
       </div>
       <div class="r">
-        <div class="dist">${t.distanceKm.toFixed(2)} กม.</div>
-        <div class="badge ${t.synced?'synced':'pending'}">${t.synced?'ซิงก์แล้ว':'รอซิงก์'}</div>
+        <div class="dist">${(+t.distanceKm).toFixed(2)} กม.</div>
+        <div class="badge ${t.synced?'synced':'pending'}">${t._remote ? 'จาก Sheets' : (t.synced?'ซิงก์แล้ว':'รอซิงก์')}</div>
       </div>
     </div>
   `).join('');
 }
 
-/* ================= Detail ================= */
-let detailTrip = null, detailPoints = null, detailWaypoints = null, leafletMap = null;
+// GET https://.../exec?action=list — returns a lightweight list of all trips stored in the sheet.
+async function fetchRemoteTrips(){
+  const base = getScriptUrl();
+  if(!base) return [];
+  try{
+    const controller = new AbortController();
+    const timer = setTimeout(()=> controller.abort(), 12000);
+    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'action=list', { signal: controller.signal });
+    clearTimeout(timer);
+    if(!res.ok) return [];
+    const data = await res.json();
+    return (data.ok && Array.isArray(data.trips)) ? data.trips : [];
+  }catch(e){ return []; } // offline/blocked/misconfigured — fail silently, local history still shows
+}
 
-async function openDetail(id){
-  const trips = await idbGetAll('trips');
-  detailTrip = trips.find(t=>t.id===id);
-  detailPoints = (await idbGetAllByIndex('trackpoints', 'tripId', id)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
-  detailWaypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
+// GET https://.../exec?action=trip&id=... — returns one trip plus its full trackpoint list,
+// used when opening a trip that only exists in Google Sheets (not in this browser's IndexedDB).
+async function fetchRemoteTripDetail(id){
+  const base = getScriptUrl();
+  if(!base) return null;
+  try{
+    const controller = new AbortController();
+    const timer = setTimeout(()=> controller.abort(), 15000);
+    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'action=trip&id=' + encodeURIComponent(id), { signal: controller.signal });
+    clearTimeout(timer);
+    if(!res.ok) return null;
+    const data = await res.json();
+    return (data.ok && data.trip) ? data : null;
+  }catch(e){ return null; }
+}
+
+/* ================= Detail ================= */
+let detailTrip = null, detailPoints = null, detailWaypoints = null, leafletMap = null, detailIsRemote = false;
+
+// isRemote=true means this trip came only from Google Sheets (not in this device's IndexedDB) —
+// e.g. viewing history from a fresh/incognito browser with no local data.
+async function openDetail(id, isRemote){
+  let trip, points, waypoints;
+
+  if(isRemote){
+    const remote = await fetchRemoteTripDetail(id);
+    if(!remote){ toast('โหลดข้อมูลทริปจาก Google Sheets ไม่สำเร็จ'); return; }
+    trip = remote.trip;
+    trip.synced = true;
+    points = (remote.trackpoints || []).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+    waypoints = [];
+  }else{
+    const trips = await idbGetAll('trips');
+    trip = trips.find(t=>t.id===id);
+    points = (await idbGetAllByIndex('trackpoints', 'tripId', id)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+    waypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
+  }
+
+  detailTrip = trip; detailPoints = points; detailWaypoints = waypoints; detailIsRemote = !!isRemote;
 
   document.getElementById('detailTitle').textContent = fmtDate(detailTrip.startTime);
-  document.getElementById('detailSub').textContent = `${detailTrip.distanceKm.toFixed(2)} กม. · เฉลี่ย ${detailTrip.avgSpeedKmh} กม./ชม. · สูงสุด ${detailTrip.maxSpeedKmh} กม./ชม.`;
-  document.getElementById('syncBtn').textContent = detailTrip.synced ? 'ซิงก์แล้ว — ซิงก์อีกครั้ง' : 'ซิงก์ขึ้น Google Sheets';
-  document.getElementById('downloadMapStatus').textContent = '';
+  document.getElementById('detailSub').textContent = `${(+detailTrip.distanceKm).toFixed(2)} กม. · เฉลี่ย ${detailTrip.avgSpeedKmh} กม./ชม. · สูงสุด ${detailTrip.maxSpeedKmh} กม./ชม.`;
+  const syncBtn = document.getElementById('syncBtn');
+  syncBtn.style.display = detailIsRemote ? 'none' : '';
+  syncBtn.textContent = detailTrip.synced ? 'ซิงก์แล้ว — ซิงก์อีกครั้ง' : 'ซิงก์ขึ้น Google Sheets';
+  document.getElementById('downloadMapStatus').textContent = detailIsRemote ? 'ดูข้อมูลจาก Google Sheets (ยังไม่มีในเครื่องนี้)' : '';
   document.getElementById('downloadMapBtn').disabled = false;
   document.getElementById('downloadMapBtn').textContent = '📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์';
 
-  drawChart(detailPoints, detailTrip.maxSpeedKmh);
-  drawMap(detailPoints, detailTrip.maxSpeedKmh);
-  drawKmTable(JSON.parse(detailTrip.perKmBreakdown || '[]'));
-
+  // IMPORTANT: switch to the detail view FIRST, before drawing anything. Leaflet measures the
+  // #map container's actual pixel size when it initializes — if the view is still hidden
+  // (display:none from the .view CSS class) that size reads as 0, so tiles render broken/half-loaded.
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-detail').classList.add('active');
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('on'));
+
+  drawChart(detailPoints, detailTrip.maxSpeedKmh);
+  drawKmTable(JSON.parse(detailTrip.perKmBreakdown || '[]'));
+  // Wait one frame so the now-visible container has finished layout before Leaflet measures it.
+  requestAnimationFrame(()=> drawMap(detailPoints, detailTrip.maxSpeedKmh));
 }
 
 function drawChart(points, maxSpeed){
@@ -673,6 +746,15 @@ function drawMap(points, maxSpeed){
   leafletMap.on('click', (e)=> openPinPopup(e.latlng));
 
   leafletMap.fitBounds(latlngs, {padding:[18,18]});
+
+  // Safety net: some WebViews/browsers still report a stale container size right after the
+  // fade-in transition starts, which leaves tiles looking cut off or missing. Re-measuring
+  // and re-fitting one more time after layout settles fixes that without a visible flicker.
+  requestAnimationFrame(()=>{
+    if(!leafletMap) return;
+    leafletMap.invalidateSize();
+    leafletMap.fitBounds(latlngs, {padding:[18,18]});
+  });
 }
 
 function openPinPopup(latlng){
