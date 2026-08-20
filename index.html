@@ -233,6 +233,9 @@
       <h3>เส้นทาง (ไล่สีตามความเร็ว)</h3>
       <div id="map"></div>
       <div class="legend"><span>ช้า</span><div class="bar"></div><span>เร็ว</span></div>
+      <div class="hint" style="text-align:left; margin-top:12px;">แตะจุดใดก็ได้บนแผนที่เพื่อปักหมุด (เช่น ปลายทางจริง จุดพัก) — 🟢ต้นทาง/🏁ปลายทางของเส้นทางปักให้อัตโนมัติแล้ว แตะหมุดที่ปักไว้เพื่อลบ</div>
+      <button class="cta ghost" id="downloadMapBtn" style="margin-top:10px; padding:13px;" onclick="downloadOfflineTiles()">📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์</button>
+      <div class="hint" id="downloadMapStatus" style="margin-top:8px;"></div>
     </div>
 
     <div class="card">
@@ -275,7 +278,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ================= IndexedDB ================= */
-const DB_NAME = 'tripTrackerDB', DB_VERSION = 1;
+const DB_NAME = 'tripTrackerDB', DB_VERSION = 2;
 let db;
 function openDB(){
   return new Promise((resolve, reject)=>{
@@ -287,6 +290,10 @@ function openDB(){
         const tp = d.createObjectStore('trackpoints', {keyPath:'id'});
         tp.createIndex('tripId', 'tripId', {unique:false});
       }
+      if(!d.objectStoreNames.contains('waypoints')){
+        const wp = d.createObjectStore('waypoints', {keyPath:'id'});
+        wp.createIndex('tripId', 'tripId', {unique:false});
+      }
     };
     req.onsuccess = e=>{ db = e.target.result; resolve(db); };
     req.onerror = e=> reject(e);
@@ -296,6 +303,7 @@ function tx(store, mode){ return db.transaction(store, mode).objectStore(store);
 function idbPut(store, val){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').put(val); r.onsuccess=()=>res(); r.onerror=rej; }); }
 function idbGetAll(store){ return new Promise((res,rej)=>{ const r=tx(store,'readonly').getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
 function idbGetAllByIndex(store, idx, val){ return new Promise((res,rej)=>{ const r=tx(store,'readonly').index(idx).getAll(val); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
+function idbDelete(store, key){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').delete(key); r.onsuccess=()=>res(); r.onerror=rej; }); }
 
 /* ================= Helpers ================= */
 function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0; return (c=='x'?r:(r&0x3|0x8)).toString(16);}); }
@@ -484,16 +492,20 @@ async function renderHistory(){
 }
 
 /* ================= Detail ================= */
-let detailTrip = null, detailPoints = null, leafletMap = null;
+let detailTrip = null, detailPoints = null, detailWaypoints = null, leafletMap = null;
 
 async function openDetail(id){
   const trips = await idbGetAll('trips');
   detailTrip = trips.find(t=>t.id===id);
   detailPoints = (await idbGetAllByIndex('trackpoints', 'tripId', id)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+  detailWaypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
 
   document.getElementById('detailTitle').textContent = fmtDate(detailTrip.startTime);
   document.getElementById('detailSub').textContent = `${detailTrip.distanceKm.toFixed(2)} กม. · เฉลี่ย ${detailTrip.avgSpeedKmh} กม./ชม. · สูงสุด ${detailTrip.maxSpeedKmh} กม./ชม.`;
   document.getElementById('syncBtn').textContent = detailTrip.synced ? 'ซิงก์แล้ว — ซิงก์อีกครั้ง' : 'ซิงก์ขึ้น Google Sheets';
+  document.getElementById('downloadMapStatus').textContent = '';
+  document.getElementById('downloadMapBtn').disabled = false;
+  document.getElementById('downloadMapBtn').textContent = '📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์';
 
   drawChart(detailPoints, detailTrip.maxSpeedKmh);
   drawMap(detailPoints, detailTrip.maxSpeedKmh);
@@ -543,10 +555,31 @@ function drawChart(points, maxSpeed){
   </svg>`;
 }
 
+function pinIcon(color, glyph){
+  return L.divIcon({
+    className: '',
+    html: `<div style="transform:translate(-50%,-100%);">
+      <svg width="30" height="38" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z" fill="${color}" stroke="#0B0E12" stroke-width="1.5"/>
+        <circle cx="15" cy="15" r="6.5" fill="#0B0E12"/>
+      </svg>
+      <div style="position:absolute; top:6px; left:0; width:30px; text-align:center; font-size:11px;">${glyph}</div>
+    </div>`,
+    iconSize: [30, 38], iconAnchor: [15, 38], popupAnchor: [0, -34]
+  });
+}
+const START_ICON = pinIcon('#34D399', '🟢');
+const END_ICON = pinIcon('#F87171', '🏁');
+const CUSTOM_ICON = pinIcon('#FBBF24', '📍');
+
+let waypointMarkers = [];
+
 function drawMap(points, maxSpeed){
   const mapEl = document.getElementById('map');
   if(leafletMap){ leafletMap.remove(); leafletMap = null; }
+  waypointMarkers = [];
   if(points.length < 2){ mapEl.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับแผนที่</div>'; return; }
+  mapEl.innerHTML = '';
 
   leafletMap = L.map('map', {zoomControl:false, attributionControl:true});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -559,9 +592,110 @@ function drawMap(points, maxSpeed){
       color: speedColor(points[i].speedKmh, Math.max(maxSpeed,20)), weight:4, opacity:0.9
     }).addTo(leafletMap);
   }
-  L.circleMarker(latlngs[0], {radius:6, color:'#34D399', fillColor:'#34D399', fillOpacity:1}).addTo(leafletMap);
-  L.circleMarker(latlngs[latlngs.length-1], {radius:6, color:'#F87171', fillColor:'#F87171', fillOpacity:1}).addTo(leafletMap);
+
+  L.marker(latlngs[0], {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>ต้นทาง</b>');
+  L.marker(latlngs[latlngs.length-1], {icon: END_ICON}).addTo(leafletMap).bindPopup('<b>ปลายทาง</b>');
+
+  (detailWaypoints || []).forEach(renderWaypointMarker);
+
+  // Tap (or click) anywhere on the map to drop a custom pin, e.g. to mark the real destination.
+  // Leaflet stops this from firing when the tap lands on an existing marker, so it won't fight with popups.
+  leafletMap.on('click', (e)=> openPinPopup(e.latlng));
+
   leafletMap.fitBounds(latlngs, {padding:[18,18]});
+}
+
+function openPinPopup(latlng){
+  const popup = L.popup({maxWidth:220})
+    .setLatLng(latlng)
+    .setContent(`
+      <div style="font-family:Inter,sans-serif;">
+        <div style="font-size:12px; font-weight:600; margin-bottom:6px; color:#111;">ปักหมุดจุดนี้</div>
+        <input id="wpLabelInput" placeholder="เช่น ปลายทาง, จุดพัก" style="width:100%; box-sizing:border-box; padding:7px 8px; border-radius:6px; border:1px solid #ccc; font-size:12.5px; margin-bottom:6px;">
+        <button onclick="saveWaypoint(${latlng.lat}, ${latlng.lng})" style="width:100%; padding:8px; border:none; border-radius:6px; background:#FBBF24; font-weight:700; font-size:12.5px; cursor:pointer;">บันทึกหมุด</button>
+      </div>
+    `)
+    .openOn(leafletMap);
+}
+
+async function saveWaypoint(lat, lng){
+  const input = document.getElementById('wpLabelInput');
+  const label = (input && input.value.trim()) || 'จุดที่ปัก';
+  const wp = { id: uuid(), tripId: detailTrip.id, lat, lng, label, createdAt: new Date().toISOString() };
+  await idbPut('waypoints', wp);
+  detailWaypoints.push(wp);
+  renderWaypointMarker(wp);
+  leafletMap.closePopup();
+  toast('ปักหมุด "' + label + '" แล้ว');
+}
+
+function renderWaypointMarker(wp){
+  const m = L.marker([wp.lat, wp.lng], {icon: CUSTOM_ICON}).addTo(leafletMap);
+  m.bindPopup(`
+    <div style="font-family:Inter,sans-serif; font-size:12.5px;">
+      <b>${wp.label}</b><br>
+      <a href="#" onclick="deleteWaypoint('${wp.id}'); return false;" style="color:#F87171;">ลบหมุดนี้</a>
+    </div>
+  `);
+  waypointMarkers.push({id: wp.id, marker: m});
+}
+
+async function deleteWaypoint(id){
+  await idbDelete('waypoints', id);
+  detailWaypoints = detailWaypoints.filter(w=>w.id !== id);
+  const found = waypointMarkers.find(w=>w.id===id);
+  if(found){ leafletMap.removeLayer(found.marker); }
+  waypointMarkers = waypointMarkers.filter(w=>w.id !== id);
+  toast('ลบหมุดแล้ว');
+}
+
+/* ---- Offline tile pre-caching ---- */
+function lon2tile(lon, z){ return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
+function lat2tile(lat, z){ return Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) + 1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, z)); }
+
+async function downloadOfflineTiles(){
+  if(!detailPoints || detailPoints.length < 2){ toast('ไม่มีเส้นทางให้ดาวน์โหลด'); return; }
+  if(!navigator.onLine){ toast('ต้องมีอินเทอร์เน็ตตอนดาวน์โหลดแผนที่'); return; }
+
+  const lats = detailPoints.map(p=>p.lat), lngs = detailPoints.map(p=>p.lng);
+  const bounds = { minLat: Math.min(...lats), maxLat: Math.max(...lats), minLng: Math.min(...lngs), maxLng: Math.max(...lngs) };
+  const zooms = [13, 14, 15, 16];
+  const subdomains = ['a','b','c'];
+
+  let tiles = [];
+  zooms.forEach(z=>{
+    const x1 = lon2tile(bounds.minLng, z), x2 = lon2tile(bounds.maxLng, z);
+    const y1 = lat2tile(bounds.maxLat, z), y2 = lat2tile(bounds.minLat, z); // lat is inverted
+    for(let x = Math.min(x1,x2)-1; x <= Math.max(x1,x2)+1; x++){
+      for(let y = Math.min(y1,y2)-1; y <= Math.max(y1,y2)+1; y++){
+        tiles.push({x, y, z});
+      }
+    }
+  });
+
+  const btn = document.getElementById('downloadMapBtn');
+  const statusEl = document.getElementById('downloadMapStatus');
+  if(tiles.length > 900){
+    tiles = tiles.slice(0, 900);
+    statusEl.textContent = `เส้นทางยาว จะดาวน์โหลดเฉพาะ ${tiles.length} ไทล์แรก`;
+  }
+  btn.disabled = true;
+  let done = 0, failed = 0;
+  for(const t of tiles){
+    const s = subdomains[(t.x + t.y) % subdomains.length];
+    const url = `https://${s}.tile.openstreetmap.org/${t.z}/${t.x}/${t.y}.png`;
+    try{
+      await fetch(url); // triggers the service worker's fetch listener, which caches the tile
+    }catch(e){ failed++; }
+    done++;
+    if(done % 8 === 0 || done === tiles.length){
+      statusEl.textContent = `กำลังดาวน์โหลด... ${done}/${tiles.length} ไทล์`;
+    }
+  }
+  btn.disabled = false;
+  btn.textContent = '✅ ดาวน์โหลดแล้ว — โหลดซ้ำ';
+  statusEl.textContent = failed ? `เสร็จแล้ว (พลาด ${failed} ไทล์ ลองอีกครั้งได้)` : `พร้อมดูออฟไลน์แล้ว (${tiles.length} ไทล์)`;
+  toast('ดาวน์โหลดแผนที่เสร็จแล้ว');
 }
 
 function drawKmTable(perKm){

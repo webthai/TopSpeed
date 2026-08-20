@@ -1,4 +1,5 @@
 const CACHE_NAME = 'trip-tracker-v1';
+const TILE_CACHE_NAME = 'trip-tracker-tiles-v1';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
@@ -22,12 +23,15 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// App-shell files: cache-first (works fully offline).
-// Everything else (map tiles, Leaflet CDN, Sheets sync): network-first, no offline fallback,
-// since those legitimately require internet per the app's design.
+// App-shell files: stale-while-revalidate (instant load, refreshes in background).
+// Map tiles: cache-first (once a tile is seen, it's reused forever — fast + works offline).
+// Everything else (Leaflet CDN, Sheets sync): network passthrough.
+const TILE_HOST_RE = /tile\.openstreetmap\.org$/;
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   const isShell = url.origin === self.location.origin;
+  const isTile = TILE_HOST_RE.test(url.hostname);
 
   if (isShell) {
     e.respondWith(
@@ -44,6 +48,35 @@ self.addEventListener('fetch', (e) => {
         return cached || fetchPromise;
       })
     );
+    return;
   }
-  // Non-shell requests fall through to the network normally.
+
+  if (isTile) {
+    e.respondWith(
+      caches.open(TILE_CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(e.request);
+        if (cached) return cached; // cache-first: tiles don't change, so a hit is served instantly
+        try {
+          const res = await fetch(e.request);
+          if (res && res.ok) cache.put(e.request, res.clone());
+          return res;
+        } catch (err) {
+          return cached || Response.error();
+        }
+      })
+    );
+  }
+  // Everything else falls through to the network normally.
+});
+
+// Lets the app ask how many tiles are cached, or clear them, from Settings.
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'TILE_CACHE_COUNT') {
+    caches.open(TILE_CACHE_NAME).then((cache) =>
+      cache.keys().then((keys) => e.ports[0].postMessage({ count: keys.length }))
+    );
+  }
+  if (e.data?.type === 'TILE_CACHE_CLEAR') {
+    caches.delete(TILE_CACHE_NAME).then(() => e.ports[0].postMessage({ ok: true }));
+  }
 });
