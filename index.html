@@ -182,7 +182,8 @@ stroke-linecap="round" stroke-dasharray="540.3" stroke-dashoffset="540.3"/>
 </div>
 </div>
 
-<div class="stat-row">
+<div class="stat-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+<div class="stat-card"><div class="k">เวลา</div><div class="v" id="liveTime">0:00</div></div>
 <div class="stat-card"><div class="k">ระยะทาง</div><div class="v" id="liveDist">0.00 กม.</div></div>
 <div class="stat-card"><div class="k">เฉลี่ย</div><div class="v" id="liveAvg">0.0</div></div>
 <div class="stat-card"><div class="k">สูงสุด</div><div class="v" id="liveMax">0.0</div></div>
@@ -326,6 +327,16 @@ let watchId = null;
 let currentTrip = null; // {id, startTime, points:[]}
 let lastPoint = null;
 let gaugeMaxSpeed = 140; // circumference reference for gauge arc
+let elapsedTimerId = null;
+
+function updateElapsedTime(){
+if(!currentTrip) return;
+const startMs = new Date(currentTrip.startTime).getTime();
+const diffSec = Math.floor((Date.now() - startMs) / 1000);
+const mm = Math.floor(diffSec / 60);
+const ss = diffSec % 60;
+document.getElementById('liveTime').textContent = mm + ':' + String(ss).padStart(2,'0');
+}
 
 function toggleTrip(){
 if(currentTrip) stopTrip(); else startTrip();
@@ -342,6 +353,8 @@ document.getElementById('statusLine').textContent = 'กำลังบันท
 watchId = navigator.geolocation.watchPosition(onPosition, onPosError, {
 enableHighAccuracy:true, maximumAge:1000, timeout:15000
 });
+elapsedTimerId = setInterval(updateElapsedTime, 1000);
+updateElapsedTime();
 }
 
 function onPosError(err){
@@ -402,6 +415,8 @@ arc.setAttribute('stroke', speedColor(kmh, 100));
 
 async function stopTrip(){
 if(watchId != null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+if(elapsedTimerId != null){ clearInterval(elapsedTimerId); elapsedTimerId = null; }
+document.getElementById('liveTime').textContent = '0:00';
 const t = currentTrip;
 currentTrip = null;
 document.getElementById('tripBtn').className = 'cta start';
