@@ -249,11 +249,13 @@
       เริ่มทริป
     </button>
     <div class="hint" id="tripHint">กดเริ่มทริปเพื่อบันทึกพิกัดอัตโนมัติทุก 2-3 วิ ข้อมูลจะถูกเก็บในเครื่องแม้ไม่มีเน็ต</div>
+    <button class="cta ghost" style="margin-top:12px;" onclick="refreshHome()">🔄 รีเฟรชหน้านี้</button>
   </section>
 
   <!-- HISTORY VIEW -->
   <section class="view" id="view-history">
     <div class="section-title" style="margin-top:20px;">ทริปที่ผ่านมา</div>
+    <button class="cta ghost" style="margin-bottom:14px;" onclick="refreshHistory()">🔄 รีเฟรชประวัติ</button>
     <div id="tripList"></div>
   </section>
 
@@ -318,6 +320,10 @@
       <button class="cta ghost" style="flex:1" onclick="closeSettings()">ปิด</button>
       <button class="cta start" style="flex:1" onclick="saveSettings()">บันทึก</button>
     </div>
+    <div style="height:1px; background:var(--line); margin:18px 0;"></div>
+    <h3 style="margin-bottom:4px;">อัพเดทแอป</h3>
+    <p>ถ้าแก้ไฟล์แล้วเปิดแอปยังเห็นเวอร์ชันเก่า กดปุ่มนี้เพื่อบังคับดึงเวอร์ชันล่าสุดมาใช้ กดซ้ำได้ไม่จำกัดครั้ง</p>
+    <button class="cta ghost" onclick="forceAppUpdate()">🔄 อัพเดทแอป</button>
   </div>
 </div>
 
@@ -546,6 +552,36 @@ function showView(name){
   const navEl = document.getElementById('nav-'+name);
   if(navEl) navEl.classList.add('on');
   if(name === 'history') renderHistory();
+}
+
+// Plain reload — always available, never disables itself, can be tapped as many times as wanted.
+function refreshHome(){
+  location.reload();
+}
+
+// Lighter-weight than a full reload: just re-reads IndexedDB and re-renders the list.
+// Also always available / repeatable — it doesn't hide, disable, or remove itself after running.
+function refreshHistory(){
+  toast('รีเฟรชประวัติแล้ว');
+  renderHistory();
+}
+
+// Forces the service worker to fetch the latest app files and reloads the page.
+// This button is never disabled or hidden — tap it as many times as needed.
+async function forceAppUpdate(){
+  toast('กำลังตรวจสอบอัพเดท...');
+  try{
+    if('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if(reg){
+        await reg.update(); // ask the browser to re-fetch sw.js and re-check cached files
+      }
+    }
+  }catch(e){
+    console.warn('update check failed', e);
+  }
+  // Hard reload bypasses the browser's HTTP cache for the page itself too.
+  location.reload();
 }
 
 /* ================= History ================= */
