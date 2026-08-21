@@ -94,12 +94,18 @@
   .section-title{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:22px 0 12px;}
   .trip-item{
     background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px;
-    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; cursor:pointer;
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; cursor:pointer; gap:8px;
   }
+  .trip-item .l{flex:1; min-width:0;}
   .trip-item .l .date{font-weight:600; font-size:14px;}
   .trip-item .l .meta{color:var(--muted); font-size:12px; margin-top:3px; font-family:var(--mono);}
   .trip-item .r{text-align:right;}
   .trip-item .r .dist{font-family:var(--mono); font-weight:700; font-size:16px;}
+  .trip-del-btn{
+    background:transparent; border:none; color:var(--muted); font-size:16px; line-height:1;
+    padding:8px; margin:-8px -4px -8px 0; cursor:pointer; border-radius:10px; flex-shrink:0;
+  }
+  .trip-del-btn:active{background:rgba(248,113,113,.12); color:var(--danger);}
   .badge{font-size:10px; padding:2px 8px; border-radius:99px; margin-top:4px; display:inline-block; letter-spacing:.04em;}
   .badge.synced{background:rgba(52,211,153,.12); color:var(--slow);}
   .badge.pending{background:rgba(251,191,36,.12); color:var(--amber);}
@@ -276,6 +282,7 @@
     </div>
 
     <button class="cta ghost" id="syncBtn" style="margin-top:16px;" onclick="syncCurrentTrip()">ซิงก์ขึ้น Google Sheets</button>
+    <button class="cta ghost" id="deleteTripBtn" style="margin-top:10px; color:var(--danger); border-color:var(--danger);" onclick="deleteTrip(detailTrip.id, detailIsRemote)">🗑️ ลบทริปนี้</button>
 
     <div class="card">
       <h3>ความเร็ว vs ระยะทาง</h3>
@@ -612,6 +619,7 @@ function renderTripList(merged){
         <div class="dist">${(+t.distanceKm).toFixed(2)} กม.</div>
         <div class="badge ${t.synced?'synced':'pending'}">${t._remote ? 'จาก Sheets' : (t.synced?'ซิงก์แล้ว':'รอซิงก์')}</div>
       </div>
+      <button class="trip-del-btn" onclick="event.stopPropagation(); deleteTrip('${t.id}', ${t._remote});" title="ลบทริปนี้">🗑️</button>
     </div>
   `).join('');
 }
@@ -1046,6 +1054,93 @@ async function autoSyncPendingTrips(){
   if(synced){ toast(`ซิงก์ทริปค้างอยู่ ${synced} รายการสำเร็จ`); renderHistory(); }
 }
 
+/* ================= Delete trip ================= */
+// Deletes are permanent — local IndexedDB rows are removed immediately either way. The Google
+// Sheets side is removed via a POST to the same Apps Script URL; if that fails (offline, Sheets
+// down) the id is queued in localStorage and retried automatically next time the app is online,
+// the same pattern autoSyncPendingTrips() uses for un-synced trips.
+const PENDING_DELETES_KEY = 'tt_pending_deletes_v1';
+function readPendingDeletes(){
+  try{ return JSON.parse(localStorage.getItem(PENDING_DELETES_KEY) || '[]'); }catch(e){ return []; }
+}
+function writePendingDeletes(list){
+  try{ localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(list)); }catch(e){}
+}
+function queuePendingDelete(id){
+  const list = readPendingDeletes();
+  if(!list.includes(id)){ list.push(id); writePendingDeletes(list); }
+}
+
+// Returns true on confirmed success, false on a real failure, 'offline' if there's no point trying.
+async function deleteRemoteTrip(id){
+  if(!navigator.onLine) return 'offline';
+  const base = getScriptUrl();
+  if(!base) return false;
+  try{
+    const controller = new AbortController();
+    const timer = setTimeout(()=> controller.abort(), 20000);
+    const res = await fetch(base, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'delete', tripId:id }),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if(!res.ok) return false;
+    const data = await res.json();
+    return !!data.ok;
+  }catch(e){ return false; }
+}
+
+async function deleteTrip(id, isRemote){
+  if(!confirm('ลบทริปนี้ถาวร? ข้อมูลพิกัดทั้งหมดของทริปนี้จะหายไปและกู้คืนไม่ได้')) return;
+
+  // Remove local copies if they exist (idbDelete on a non-existent key is a harmless no-op —
+  // safe to call even for a trip that only ever lived in Google Sheets).
+  await idbDelete('trips', id);
+  const points = await idbGetAllByIndex('trackpoints', 'tripId', id);
+  for(const p of points){ await idbDelete('trackpoints', p.id); }
+  const waypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
+  for(const w of waypoints){ await idbDelete('waypoints', w.id); }
+
+  // Drop any cached copies of this trip / the list so a deleted trip can't reappear from cache.
+  try{ localStorage.removeItem(remoteTripCacheKey(id)); }catch(e){}
+  try{ localStorage.removeItem(REMOTE_LIST_CACHE_KEY); }catch(e){}
+
+  const result = await deleteRemoteTrip(id);
+  if(result === true){
+    toast('ลบทริปแล้ว ทั้งในเครื่องและ Google Sheets');
+  }else{
+    queuePendingDelete(id);
+    toast(result === 'offline'
+      ? 'ลบในเครื่องแล้ว — จะลบใน Sheets ให้อัตโนมัติเมื่อมีเน็ต'
+      : 'ลบในเครื่องแล้ว แต่ลบใน Sheets ไม่สำเร็จ จะลองใหม่ให้อัตโนมัติ');
+  }
+
+  // If we were looking at this exact trip's detail page, back out to the history list.
+  if(document.getElementById('view-detail').classList.contains('active') && detailTrip && detailTrip.id === id){
+    showView('history');
+  }else{
+    renderHistory();
+  }
+}
+
+// Called on app start (alongside autoSyncPendingTrips) — retries any deletes that couldn't
+// reach Google Sheets earlier.
+async function retryPendingDeletes(){
+  if(!navigator.onLine) return;
+  const pending = readPendingDeletes();
+  if(!pending.length) return;
+  const stillPending = [];
+  let deleted = 0;
+  for(const id of pending){
+    const result = await deleteRemoteTrip(id);
+    if(result === true) deleted++; else stillPending.push(id);
+  }
+  writePendingDeletes(stillPending);
+  if(deleted){ toast(`ลบทริปค้างอยู่ใน Sheets สำเร็จ ${deleted} รายการ`); }
+}
+
 /* ================= Settings modal ================= */
 function openSettings(){
   document.getElementById('scriptUrlInput').value = getScriptUrl();
@@ -1165,6 +1260,7 @@ function initLockScreen(){
     try{ await navigator.serviceWorker.register('sw.js'); }catch(e){ console.warn('SW register failed', e); }
   }
   autoSyncPendingTrips();
+  retryPendingDeletes();
 })();
 </script>
 </body>
