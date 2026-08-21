@@ -146,6 +146,12 @@ border-radius:10px; font-family:var(--mono); font-size:12.5px; margin-bottom:12p
 .modal .row{display:flex; gap:10px;}
 .modal .row .cta{padding:14px;}
 svg text{font-family:var(--mono);}
+@media (max-width:380px){
+.stat-row{grid-template-columns:1fr 1fr;}
+.gauge{width:230px; height:230px;}
+.gauge-speed{font-size:46px;}
+.cta{font-size:14px; padding:16px;}
+}
 </style>
 </head>
 <body>
@@ -198,7 +204,10 @@ stroke-linecap="round" stroke-dasharray="540.3" stroke-dashoffset="540.3"/>
 
 <!-- HISTORY VIEW -->
 <section class="view" id="view-history">
-<div class="section-title" style="margin-top:20px;">ทริปที่ผ่านมา</div>
+<div class="section-title" style="margin-top:20px; display:flex; align-items:center; justify-content:space-between;">
+<span>ทริปที่ผ่านมา</span>
+<span id="pullBtn" onclick="pullFromSheets()" style="color:var(--amber); font-size:11px; cursor:pointer;">🔄 ดึงจากทุกเครื่อง</span>
+</div>
 <div id="tripList"></div>
 </section>
 
@@ -767,6 +776,41 @@ toast('ซิงก์ไม่สำเร็จ: ' + err.message);
 }
 }
 btn.disabled = false;
+}
+
+async function pullFromSheets(){
+const url = getScriptUrl();
+if(!url){ toast('ยังไม่ได้ตั้งค่า URL — กดไอคอนตั้งค่ามุมขวาบน'); openSettings(); return; }
+if(!navigator.onLine){ toast('ไม่มีอินเทอร์เน็ต ลองใหม่ภายหลัง'); return; }
+const el = document.getElementById('pullBtn');
+el.textContent = '⏳ กำลังดึง...';
+try{
+const listRes = await fetch(url + (url.includes('?')?'&':'?') + 'action=list');
+if(!listRes.ok) throw new Error('HTTP ' + listRes.status);
+const listData = await listRes.json();
+if(listData.ok === false) throw new Error(listData.error || 'pull failed');
+const remoteTrips = listData.trips || [];
+const localIds = new Set((await idbGetAll('trips')).map(t=>t.id));
+const newOnes = remoteTrips.filter(t=>!localIds.has(t.id));
+
+for(const trip of newOnes){
+trip.distanceKm = +trip.distanceKm; trip.avgSpeedKmh = +trip.avgSpeedKmh; trip.maxSpeedKmh = +trip.maxSpeedKmh;
+trip.synced = true;
+await idbPut('trips', trip);
+const detRes = await fetch(url + (url.includes('?')?'&':'?') + 'action=trip&id=' + encodeURIComponent(trip.id));
+const detData = await detRes.json();
+if(detData.ok !== false){
+for(const p of (detData.trackpoints||[])) await idbPut('trackpoints', p);
+}
+}
+
+toast('ดึงข้อมูลใหม่ ' + newOnes.length + ' ทริป');
+renderHistory();
+}catch(err){
+console.error(err);
+toast('ดึงข้อมูลไม่สำเร็จ: ' + err.message);
+}
+el.textContent = '🔄 ดึงจากทุกเครื่อง';
 }
 
 /* ================= Settings modal ================= */
