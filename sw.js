@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trip-tracker-v2';
+const CACHE_NAME = 'trip-tracker-v3';
 const TILE_CACHE_NAME = 'trip-tracker-tiles-v1';
 const LIB_CACHE_NAME = 'trip-tracker-libs-v1';
 

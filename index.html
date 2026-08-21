@@ -150,6 +150,20 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
 
+  .update-banner{
+    position:fixed; left:12px; right:12px; bottom:calc(78px + env(safe-area-inset-bottom));
+    background:var(--surface-2); border:1px solid var(--amber); border-radius:14px; padding:12px 14px;
+    display:none; align-items:center; gap:10px; z-index:55; box-shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+  .update-banner.show{display:flex;}
+  .update-banner .txt{flex:1; font-size:12.5px; line-height:1.5;}
+  .update-banner button{
+    font-family:var(--mono); font-size:12px; font-weight:700; padding:8px 12px; border-radius:10px;
+    border:none; cursor:pointer; flex-shrink:0;
+  }
+  .update-banner .btn-update{background:var(--amber); color:#3a2a06;}
+  .update-banner .btn-dismiss{background:transparent; color:var(--muted); padding:8px;}
+
   .modal-back{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:60; display:none; align-items:flex-end;}
   .modal-back.show{display:flex;}
   .modal{background:var(--surface); border-radius:20px 20px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom)); width:100%; border-top:1px solid var(--line);}
@@ -321,6 +335,11 @@
 </nav>
 
 <div class="toast" id="toast"></div>
+<div class="update-banner" id="updateBanner">
+  <div class="txt" id="updateBannerText">มีเวอร์ชันใหม่ของแอป กดอัปเดตเพื่อใช้ล่าสุด</div>
+  <button class="btn-update" onclick="applyUpdate()">อัปเดต</button>
+  <button class="btn-dismiss" onclick="dismissUpdateBanner()">ภายหลัง</button>
+</div>
 
 <div class="modal-back" id="settingsModal">
   <div class="modal">
@@ -1252,13 +1271,54 @@ function initLockScreen(){
 }
 
 /* ================= Init ================= */
+// iOS Safari (especially installed-to-homescreen PWAs) is notoriously slow/unreliable about
+// checking for a new sw.js on its own — it can sit on an old cached service worker for a long
+// time. Two things fix that: (1) tell the browser to never use its HTTP cache for the SW script
+// itself (updateViaCache:'none'), and (2) proactively call registration.update() ourselves,
+// especially every time the app comes back to the foreground — that's exactly the moment
+// (reopening from the home-screen icon) Safari's own background check tends to miss.
+async function registerServiceWorkerWithUpdates(){
+  if(!('serviceWorker' in navigator)) return;
+
+  // Was this page load already controlled by a SW? If so, a later controllerchange means a
+  // genuine update just took over — if not (fresh install, first-ever visit), the first
+  // controllerchange is just normal setup and shouldn't be shown as an "update".
+  const hadControllerBefore = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(hadControllerBefore) showUpdateBanner();
+  });
+
+  try{
+    const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+    reg.update().catch(()=>{}); // in case a newer sw.js is already sitting on the server right now
+
+    document.addEventListener('visibilitychange', () => {
+      if(document.visibilityState === 'visible') reg.update().catch(()=>{});
+    });
+  }catch(e){ console.warn('SW register failed', e); }
+}
+
+function showUpdateBanner(){
+  const txt = document.getElementById('updateBannerText');
+  // Reloading mid-trip would stop GPS recording (already-recorded points stay saved safely,
+  // but live tracking would need restarting) — say so instead of silently letting it happen.
+  txt.textContent = currentTrip
+    ? 'มีเวอร์ชันใหม่ของแอป — ถ้ากำลังบันทึกทริปอยู่ ให้กดจบทริปก่อนแล้วค่อยอัปเดต'
+    : 'มีเวอร์ชันใหม่ของแอป กดอัปเดตเพื่อใช้เวอร์ชันล่าสุด';
+  document.getElementById('updateBanner').classList.add('show');
+}
+function dismissUpdateBanner(){
+  document.getElementById('updateBanner').classList.remove('show');
+}
+function applyUpdate(){
+  window.location.reload();
+}
+
 (async function init(){
   await openDB();
   renderHistory();
   initLockScreen();
-  if('serviceWorker' in navigator){
-    try{ await navigator.serviceWorker.register('sw.js'); }catch(e){ console.warn('SW register failed', e); }
-  }
+  registerServiceWorkerWithUpdates();
   autoSyncPendingTrips();
   retryPendingDeletes();
 })();
