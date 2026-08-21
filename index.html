@@ -55,10 +55,6 @@
     border:1px solid var(--line); color:var(--muted); display:flex;align-items:center;justify-content:center;
     cursor:pointer;
   }
-  .topbar-actions{display:flex; align-items:center; gap:8px;}
-  .icon-btn.spinning svg{animation:spin .8s linear infinite;}
-  .icon-btn:disabled, .icon-btn[disabled]{opacity:.5; pointer-events:none;}
-  @keyframes spin{ to{ transform:rotate(360deg); } }
   main{position:relative; z-index:1; padding:0 20px; max-width:640px; margin:0 auto;}
   .view{display:none; animation:fadeIn .25s ease;}
   .view.active{display:block;}
@@ -98,18 +94,12 @@
   .section-title{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:22px 0 12px;}
   .trip-item{
     background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px;
-    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; cursor:pointer; gap:8px;
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; cursor:pointer;
   }
-  .trip-item .l{flex:1; min-width:0;}
   .trip-item .l .date{font-weight:600; font-size:14px;}
   .trip-item .l .meta{color:var(--muted); font-size:12px; margin-top:3px; font-family:var(--mono);}
   .trip-item .r{text-align:right;}
   .trip-item .r .dist{font-family:var(--mono); font-weight:700; font-size:16px;}
-  .trip-del-btn{
-    background:transparent; border:none; color:var(--muted); font-size:16px; line-height:1;
-    padding:8px; margin:-8px -4px -8px 0; cursor:pointer; border-radius:10px; flex-shrink:0;
-  }
-  .trip-del-btn:active{background:rgba(248,113,113,.12); color:var(--danger);}
   .badge{font-size:10px; padding:2px 8px; border-radius:99px; margin-top:4px; display:inline-block; letter-spacing:.04em;}
   .badge.synced{background:rgba(52,211,153,.12); color:var(--slow);}
   .badge.pending{background:rgba(251,191,36,.12); color:var(--amber);}
@@ -123,7 +113,6 @@
   .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-top:16px;}
   .card h3{margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:600;}
   #map{height:260px; border-radius:12px; overflow:hidden;}
-  #homeMap{height:220px; border-radius:12px; overflow:hidden; background:var(--surface-2);}
   .legend{display:flex; align-items:center; gap:8px; margin-top:10px; font-size:11px; color:var(--muted); font-family:var(--mono);}
   .legend .bar{flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg,var(--slow),#FBBF24,var(--fast));}
   table.km-table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12.5px;}
@@ -154,20 +143,6 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
 
-  .update-banner{
-    position:fixed; left:12px; right:12px; bottom:calc(78px + env(safe-area-inset-bottom));
-    background:var(--surface-2); border:1px solid var(--amber); border-radius:14px; padding:12px 14px;
-    display:none; align-items:center; gap:10px; z-index:55; box-shadow:0 8px 24px rgba(0,0,0,.35);
-  }
-  .update-banner.show{display:flex;}
-  .update-banner .txt{flex:1; font-size:12.5px; line-height:1.5;}
-  .update-banner button{
-    font-family:var(--mono); font-size:12px; font-weight:700; padding:8px 12px; border-radius:10px;
-    border:none; cursor:pointer; flex-shrink:0;
-  }
-  .update-banner .btn-update{background:var(--amber); color:#3a2a06;}
-  .update-banner .btn-dismiss{background:transparent; color:var(--muted); padding:8px;}
-
   .modal-back{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:60; display:none; align-items:flex-end;}
   .modal-back.show{display:flex;}
   .modal{background:var(--surface); border-radius:20px 20px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom)); width:100%; border-top:1px solid var(--line);}
@@ -184,10 +159,9 @@
 
   /* ---- PIN Lock ---- */
   .lock-screen{
-    position:fixed; inset:0; z-index:200; background:var(--bg);
-    display:none; align-items:center; justify-content:center; flex-direction:column;
+    position:fixed; inset:0; z-index:500; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
   }
-  .lock-screen.show{display:flex;}
   .lock-inner{display:flex; flex-direction:column; align-items:center; padding:20px; max-width:320px; width:100%;}
   .lock-icon{font-size:34px; margin-bottom:10px;}
   .lock-title{font-family:var(--mono); font-weight:700; font-size:17px;}
@@ -202,7 +176,7 @@
     color:var(--text); font-family:var(--mono); font-size:20px; font-weight:600; cursor:pointer;
   }
   .keypad button:active{background:var(--surface-2);}
-  .keypad button.ghostkey{background:transparent; border:none; color:var(--muted); font-size:13px; font-weight:500;}
+  .keypad button.ghostkey{background:transparent; border:none;}
   .shake{animation:shake .35s;}
   @keyframes shake{
     10%,90%{transform:translateX(-2px);} 20%,80%{transform:translateX(4px);}
@@ -211,13 +185,12 @@
 </style>
 </head>
 <body>
-<div class="bg-noise"></div>
 
 <div class="lock-screen" id="lockScreen">
   <div class="lock-inner">
     <div class="lock-icon">🔒</div>
-    <div class="lock-title" id="lockTitle">กรอกรหัส PIN</div>
-    <div class="lock-sub" id="lockSub">ปกป้องข้อมูลทริปของคุณ</div>
+    <div class="lock-title">กรอกรหัส PIN</div>
+    <div class="lock-sub">ปกป้องข้อมูลทริปของคุณ</div>
     <div class="pin-dots" id="pinDots">
       <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
     </div>
@@ -226,10 +199,12 @@
       <button onclick="pinPress('1')">1</button><button onclick="pinPress('2')">2</button><button onclick="pinPress('3')">3</button>
       <button onclick="pinPress('4')">4</button><button onclick="pinPress('5')">5</button><button onclick="pinPress('6')">6</button>
       <button onclick="pinPress('7')">7</button><button onclick="pinPress('8')">8</button><button onclick="pinPress('9')">9</button>
-      <button class="ghostkey" onclick="pinForgot()">ลืม?</button><button onclick="pinPress('0')">0</button><button class="ghostkey" onclick="pinBackspace()">⌫</button>
+      <button class="ghostkey"></button><button onclick="pinPress('0')">0</button><button class="ghostkey" onclick="pinBackspace()">⌫</button>
     </div>
   </div>
 </div>
+
+<div class="bg-noise"></div>
 
 <header class="topbar">
   <div class="brand">
@@ -239,13 +214,8 @@
       <small id="statusLine">พร้อมเริ่มทริป</small>
     </div>
   </div>
-  <div class="topbar-actions">
-    <button class="icon-btn" id="checkUpdateBtn" onclick="checkForUpdate()" title="เช็คอัปเดต / ล้างแคช">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-    </button>
-    <div class="icon-btn" onclick="openSettings()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-    </div>
+  <div class="icon-btn" onclick="openSettings()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </div>
 </header>
 
@@ -279,11 +249,6 @@
       เริ่มทริป
     </button>
     <div class="hint" id="tripHint">กดเริ่มทริปเพื่อบันทึกพิกัดอัตโนมัติทุก 2-3 วิ ข้อมูลจะถูกเก็บในเครื่องแม้ไม่มีเน็ต</div>
-
-    <div class="card" id="homeMapCard" style="display:none;">
-      <h3>เส้นทางตอนนี้</h3>
-      <div id="homeMap"></div>
-    </div>
   </section>
 
   <!-- HISTORY VIEW -->
@@ -305,7 +270,6 @@
     </div>
 
     <button class="cta ghost" id="syncBtn" style="margin-top:16px;" onclick="syncCurrentTrip()">ซิงก์ขึ้น Google Sheets</button>
-    <button class="cta ghost" id="deleteTripBtn" style="margin-top:10px; color:var(--danger); border-color:var(--danger);" onclick="deleteTrip(detailTrip.id, detailIsRemote)">🗑️ ลบทริปนี้</button>
 
     <div class="card">
       <h3>ความเร็ว vs ระยะทาง</h3>
@@ -344,33 +308,51 @@
 </nav>
 
 <div class="toast" id="toast"></div>
-<div class="update-banner" id="updateBanner">
-  <div class="txt" id="updateBannerText">มีเวอร์ชันใหม่ของแอป กดอัปเดตเพื่อใช้ล่าสุด</div>
-  <button class="btn-update" onclick="applyUpdate()">อัปเดต</button>
-  <button class="btn-dismiss" onclick="dismissUpdateBanner()">ภายหลัง</button>
-</div>
 
 <div class="modal-back" id="settingsModal">
   <div class="modal">
     <h3>ตั้งค่า Google Sheets Sync</h3>
-    <p>ตั้งค่าไว้ให้แล้ว ทริปจะซิงก์ขึ้นชีตอัตโนมัติทุกครั้งที่กดจบทริป (ถ้ามีเน็ต) — แก้ URL ได้ถ้าต้องการเปลี่ยนปลายทาง</p>
+    <p>วาง URL ของ Google Apps Script Web App (ดูวิธี deploy ใน README) เพื่อให้ปุ่มซิงก์ทำงาน</p>
     <input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/xxxx/exec">
     <div class="row">
       <button class="cta ghost" style="flex:1" onclick="closeSettings()">ปิด</button>
       <button class="cta start" style="flex:1" onclick="saveSettings()">บันทึก</button>
-    </div>
-    <div style="height:1px; background:var(--line); margin:18px 0;"></div>
-    <h3 style="margin-bottom:4px;">ล็อกแอปด้วยรหัส PIN</h3>
-    <p id="pinStatusText">กำลังตรวจสอบ...</p>
-    <div class="row">
-      <button class="cta ghost" style="flex:1" onclick="startPinChange()" id="pinToggleBtn">ตั้ง/เปลี่ยนรหัส PIN</button>
-      <button class="cta ghost" style="flex:1; color:var(--danger);" onclick="removePinFromSettings()" id="pinRemoveBtn">ปิดการล็อก</button>
     </div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+/* ================= PIN Lock (checked first, before anything else renders meaningfully) ================= */
+const APP_PIN = '5340'; // hardcoded — same code for anyone who opens the link
+let pinInput = '';
+function renderPinDots(){
+  const dots = document.querySelectorAll('#pinDots .pin-dot');
+  dots.forEach((d,i)=> d.classList.toggle('filled', i < pinInput.length));
+}
+function pinPress(digit){
+  if(pinInput.length >= 4) return;
+  pinInput += digit;
+  renderPinDots();
+  if(pinInput.length === 4) setTimeout(checkPin, 120);
+}
+function pinBackspace(){
+  pinInput = pinInput.slice(0, -1);
+  renderPinDots();
+}
+function checkPin(){
+  if(pinInput === APP_PIN){
+    document.getElementById('lockScreen').style.display = 'none';
+  }else{
+    document.getElementById('lockError').textContent = 'รหัสไม่ถูกต้อง ลองใหม่';
+    const inner = document.querySelector('.lock-inner');
+    inner.classList.add('shake');
+    setTimeout(()=> inner.classList.remove('shake'), 400);
+    pinInput = '';
+    renderPinDots();
+  }
+}
+
 /* ================= IndexedDB ================= */
 const DB_NAME = 'tripTrackerDB', DB_VERSION = 2;
 let db;
@@ -432,10 +414,6 @@ let currentTrip = null; // {id, startTime, points:[]}
 let lastPoint = null;
 let gaugeMaxSpeed = 140; // circumference reference for gauge arc
 
-// Home-screen live-follow map — only exists while a trip is actively recording (created lazily
-// on the first GPS fix, destroyed on stop) so it costs nothing in battery/data the rest of the time.
-let homeLeafletMap = null, homePolyline = null, homeMarker = null;
-
 function toggleTrip(){
   if(currentTrip) stopTrip(); else startTrip();
 }
@@ -449,24 +427,9 @@ async function startTrip(){
   document.getElementById('tripHint').innerHTML = '<b>กำลังบันทึก...</b> ปล่อยแอปไว้เปิดหน้าจอหรือทำงานพื้นหลังได้ตามการตั้งค่ามือถือ';
   document.getElementById('statusLine').textContent = 'กำลังบันทึกทริป';
 
-  // Show the container now (same fix as the detail-page map bug: make it visible BEFORE Leaflet
-  // measures it). The actual L.map() init happens in onPosition() once we have a real coordinate.
-  document.getElementById('homeMapCard').style.display = 'block';
-
   watchId = navigator.geolocation.watchPosition(onPosition, onPosError, {
     enableHighAccuracy:true, maximumAge:1000, timeout:15000
   });
-}
-
-function initHomeMap(lat, lng){
-  if(homeLeafletMap) return;
-  homeLeafletMap = L.map('homeMap', { zoomControl:false, attributionControl:true }).setView([lat, lng], 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap'
-  }).addTo(homeLeafletMap);
-  homePolyline = L.polyline([[lat, lng]], { color:'#FBBF24', weight:4, opacity:0.9 }).addTo(homeLeafletMap);
-  homeMarker = L.circleMarker([lat, lng], { radius:7, weight:2, color:'#0B0E12', fillColor:'#34D399', fillOpacity:1 }).addTo(homeLeafletMap);
-  requestAnimationFrame(()=>{ if(homeLeafletMap) homeLeafletMap.invalidateSize(); });
 }
 
 function onPosError(err){
@@ -511,18 +474,6 @@ async function onPosition(pos){
 
   lastPoint = {lat, lng, t: now};
   updateGauge(speedKmh);
-
-  // Keep the home map following along. Deliberately cheap per update: setLatLng/addLatLng/panTo
-  // instead of removing+recreating layers or calling fitBounds (which recomputes zoom every time
-  // and is the main thing that makes a "live" map feel janky and drain battery).
-  if(!homeLeafletMap){
-    initHomeMap(lat, lng);
-  }else{
-    homeMarker.setLatLng([lat, lng]);
-    homePolyline.addLatLng([lat, lng]);
-    homeLeafletMap.panTo([lat, lng], { animate:true, duration:0.4 });
-  }
-
   document.getElementById('liveDist').textContent = currentTrip.distanceKm.toFixed(2) + ' กม.';
   document.getElementById('liveAvg').textContent = (currentTrip.speedSum/currentTrip.speedCount).toFixed(1);
   document.getElementById('liveMax').textContent = currentTrip.maxSpeedKmh.toFixed(1);
@@ -549,10 +500,7 @@ async function stopTrip(){
   document.getElementById('gpsStatus').textContent = 'GPS: รอสัญญาณ';
   document.getElementById('gpsStatus').classList.remove('live');
 
-  if(homeLeafletMap){ homeLeafletMap.remove(); homeLeafletMap = null; homePolyline = null; homeMarker = null; }
-  document.getElementById('homeMapCard').style.display = 'none';
-
-  if(!t || t.points.length < 1){ toast('ไม่มีจุดพิกัดที่บันทึกได้ ลองใหม่'); renderHistory(); return; }
+  if(!t || t.points.length < 2){ toast('ทริปสั้นเกินไป ไม่บันทึก'); renderHistory(); return; }
 
   const perKm = buildPerKmBreakdown(t.points, t.distanceKm);
   const trip = {
@@ -566,18 +514,11 @@ async function stopTrip(){
     synced: false
   };
   await idbPut('trips', trip);
-  if(!navigator.onLine){
-    toast('บันทึกทริปแล้ว (ออฟไลน์ — จะซิงก์ให้อัตโนมัติเมื่อมีเน็ต)');
-  }else if(t.points.length === 1){
-    toast('บันทึกทริปแล้ว (จุดเดียว, สั้นมาก)');
-  }else{
-    toast('บันทึกทริปแล้ว (' + trip.distanceKm + ' กม.)');
-  }
+  toast('บันทึกทริปแล้ว (' + trip.distanceKm + ' กม.)');
   document.getElementById('liveDist').textContent = '0.00 กม.';
   document.getElementById('liveAvg').textContent = '0.0';
   document.getElementById('liveMax').textContent = '0.0';
   renderHistory();
-  autoSyncTrip(trip.id); // fire-and-forget: syncs in the background if online, retried later if not
 }
 
 function buildPerKmBreakdown(points, totalKm){
@@ -608,172 +549,52 @@ function showView(name){
 }
 
 /* ================= History ================= */
-// Client-side cache so switching to the History tab doesn't have to wait on Google Sheets
-// every single time. "Fresh" cache is used as-is; anything older triggers a silent background
-// refresh (stale-while-revalidate) so the UI never blocks on the network.
-const REMOTE_LIST_CACHE_KEY = 'tt_remote_trips_cache_v1';
-const REMOTE_LIST_FRESH_MS = 90 * 1000; // don't even hit the network if cache is newer than this
-
-function readRemoteListCache(){
-  try{
-    const parsed = JSON.parse(localStorage.getItem(REMOTE_LIST_CACHE_KEY) || 'null');
-    if(!parsed || parsed.url !== getScriptUrl()) return null; // stale/foreign cache, ignore
-    return parsed; // {url, ts, trips}
-  }catch(e){ return null; }
-}
-function writeRemoteListCache(trips){
-  try{ localStorage.setItem(REMOTE_LIST_CACHE_KEY, JSON.stringify({ url:getScriptUrl(), ts:Date.now(), trips })); }
-  catch(e){ /* quota exceeded or private mode — just skip caching */ }
-}
-
-function mergeTrips(localTrips, remoteTrips){
-  const localIds = new Set(localTrips.map(t=>t.id));
-  return [
-    ...localTrips.map(t=>({...t, _remote:false})),
-    ...(remoteTrips||[]).filter(t=>!localIds.has(t.id)).map(t=>({...t, synced:true, _remote:true}))
-  ].sort((a,b)=> new Date(b.startTime) - new Date(a.startTime));
-}
-
-function renderTripList(merged){
+async function renderHistory(){
+  const trips = (await idbGetAll('trips')).sort((a,b)=> new Date(b.startTime) - new Date(a.startTime));
   const el = document.getElementById('tripList');
-  if(!merged.length){ el.innerHTML = '<div class="empty">ยังไม่มีทริปที่บันทึกไว้<br>กด "เริ่มทริป" ที่หน้าแรกเพื่อเริ่มเก็บพิกัด</div>'; return; }
-  el.innerHTML = merged.map(t=>`
-    <div class="trip-item" onclick="openDetail('${t.id}', ${t._remote})">
+  if(!trips.length){ el.innerHTML = '<div class="empty">ยังไม่มีทริปที่บันทึกไว้<br>กด "เริ่มทริป" ที่หน้าแรกเพื่อเริ่มเก็บพิกัด</div>'; return; }
+  el.innerHTML = trips.map(t=>`
+    <div class="trip-item" onclick="openDetail('${t.id}')">
       <div class="l">
         <div class="date">${fmtDate(t.startTime)}</div>
         <div class="meta">เฉลี่ย ${t.avgSpeedKmh} · สูงสุด ${t.maxSpeedKmh} กม./ชม.</div>
       </div>
       <div class="r">
-        <div class="dist">${(+t.distanceKm).toFixed(2)} กม.</div>
-        <div class="badge ${t.synced?'synced':'pending'}">${t._remote ? 'จาก Sheets' : (t.synced?'ซิงก์แล้ว':'รอซิงก์')}</div>
+        <div class="dist">${t.distanceKm.toFixed(2)} กม.</div>
+        <div class="badge ${t.synced?'synced':'pending'}">${t.synced?'ซิงก์แล้ว':'รอซิงก์'}</div>
       </div>
-      <button class="trip-del-btn" onclick="event.stopPropagation(); deleteTrip('${t.id}', ${t._remote});" title="ลบทริปนี้">🗑️</button>
     </div>
   `).join('');
 }
 
-async function renderHistory(){
-  const localTrips = await idbGetAll('trips');
-
-  // 1) Render instantly: local trips (always fresh) + whatever remote trips we have cached,
-  //    however old — showing slightly-stale Sheets data beats a blank/loading screen.
-  const cache = readRemoteListCache();
-  renderTripList(mergeTrips(localTrips, cache ? cache.trips : []));
-
-  // 2) Only touch the network if the cache is missing or old enough to bother — and do it
-  //    in the background, re-rendering only if the result actually differs from what's on screen.
-  const cacheAgeMs = cache ? Date.now() - cache.ts : Infinity;
-  if(navigator.onLine && cacheAgeMs > REMOTE_LIST_FRESH_MS){
-    const remoteTrips = await fetchRemoteTrips();
-    if(remoteTrips !== null){
-      writeRemoteListCache(remoteTrips);
-      if(document.getElementById('view-history').classList.contains('active')){
-        renderTripList(mergeTrips(localTrips, remoteTrips));
-      }
-    }
-  }
-}
-
-// GET https://.../exec?action=list — returns a lightweight list of all trips stored in the sheet.
-// Returns null on any failure (so the caller can tell "no data" apart from "fetch failed" and
-// avoid overwriting a good cache with an empty one).
-async function fetchRemoteTrips(){
-  const base = getScriptUrl();
-  if(!base) return null;
-  try{
-    const controller = new AbortController();
-    const timer = setTimeout(()=> controller.abort(), 12000);
-    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'action=list', { signal: controller.signal });
-    clearTimeout(timer);
-    if(!res.ok) return null;
-    const data = await res.json();
-    return (data.ok && Array.isArray(data.trips)) ? data.trips : null;
-  }catch(e){ return null; } // offline/blocked/misconfigured — fail silently, local/cached history still shows
-}
-
-// GET https://.../exec?action=trip&id=... — returns one trip plus its full trackpoint list.
-// Past trips never change once synced, so a successful result is cached permanently per-id —
-// reopening the same trip later costs zero network round-trips.
-function remoteTripCacheKey(id){ return 'tt_remote_trip_v1:' + id; }
-function readRemoteTripCache(id){
-  try{ return JSON.parse(localStorage.getItem(remoteTripCacheKey(id)) || 'null'); }
-  catch(e){ return null; }
-}
-function writeRemoteTripCache(id, data){
-  try{ localStorage.setItem(remoteTripCacheKey(id), JSON.stringify(data)); }
-  catch(e){ /* quota exceeded — skip caching this one, it'll just refetch next time */ }
-}
-async function fetchRemoteTripDetail(id){
-  const cached = readRemoteTripCache(id);
-  if(cached) return cached; // immutable historical data — trust the cache forever, no network needed
-
-  const base = getScriptUrl();
-  if(!base) return null;
-  try{
-    const controller = new AbortController();
-    const timer = setTimeout(()=> controller.abort(), 15000);
-    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'action=trip&id=' + encodeURIComponent(id), { signal: controller.signal });
-    clearTimeout(timer);
-    if(!res.ok) return null;
-    const data = await res.json();
-    if(data.ok && data.trip){ writeRemoteTripCache(id, data); return data; }
-    return null;
-  }catch(e){ return null; }
-}
-
 /* ================= Detail ================= */
-let detailTrip = null, detailPoints = null, detailWaypoints = null, leafletMap = null, detailIsRemote = false;
+let detailTrip = null, detailPoints = null, detailWaypoints = null, leafletMap = null;
 
-// isRemote=true means this trip came only from Google Sheets (not in this device's IndexedDB) —
-// e.g. viewing history from a fresh/incognito browser with no local data.
-async function openDetail(id, isRemote){
-  let trip, points, waypoints;
-
-  if(isRemote){
-    const remote = await fetchRemoteTripDetail(id);
-    if(!remote){ toast('โหลดข้อมูลทริปจาก Google Sheets ไม่สำเร็จ'); return; }
-    trip = remote.trip;
-    trip.synced = true;
-    points = (remote.trackpoints || []).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
-    waypoints = [];
-  }else{
-    const trips = await idbGetAll('trips');
-    trip = trips.find(t=>t.id===id);
-    points = (await idbGetAllByIndex('trackpoints', 'tripId', id)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
-    waypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
-  }
-
-  detailTrip = trip; detailPoints = points; detailWaypoints = waypoints; detailIsRemote = !!isRemote;
+async function openDetail(id){
+  const trips = await idbGetAll('trips');
+  detailTrip = trips.find(t=>t.id===id);
+  detailPoints = (await idbGetAllByIndex('trackpoints', 'tripId', id)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+  detailWaypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
 
   document.getElementById('detailTitle').textContent = fmtDate(detailTrip.startTime);
-  document.getElementById('detailSub').textContent = `${(+detailTrip.distanceKm).toFixed(2)} กม. · เฉลี่ย ${detailTrip.avgSpeedKmh} กม./ชม. · สูงสุด ${detailTrip.maxSpeedKmh} กม./ชม.`;
-  const syncBtn = document.getElementById('syncBtn');
-  syncBtn.style.display = detailIsRemote ? 'none' : '';
-  syncBtn.textContent = detailTrip.synced ? 'ซิงก์แล้ว — ซิงก์อีกครั้ง' : 'ซิงก์ขึ้น Google Sheets';
-  document.getElementById('downloadMapStatus').textContent = detailIsRemote ? 'ดูข้อมูลจาก Google Sheets (ยังไม่มีในเครื่องนี้)' : '';
+  document.getElementById('detailSub').textContent = `${detailTrip.distanceKm.toFixed(2)} กม. · เฉลี่ย ${detailTrip.avgSpeedKmh} กม./ชม. · สูงสุด ${detailTrip.maxSpeedKmh} กม./ชม.`;
+  document.getElementById('syncBtn').textContent = detailTrip.synced ? 'ซิงก์แล้ว — ซิงก์อีกครั้ง' : 'ซิงก์ขึ้น Google Sheets';
+  document.getElementById('downloadMapStatus').textContent = '';
   document.getElementById('downloadMapBtn').disabled = false;
   document.getElementById('downloadMapBtn').textContent = '📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์';
 
-  // IMPORTANT: switch to the detail view FIRST, before drawing anything. Leaflet measures the
-  // #map container's actual pixel size when it initializes — if the view is still hidden
-  // (display:none from the .view CSS class) that size reads as 0, so tiles render broken/half-loaded.
+  drawChart(detailPoints, detailTrip.maxSpeedKmh);
+  drawMap(detailPoints, detailTrip.maxSpeedKmh);
+  drawKmTable(JSON.parse(detailTrip.perKmBreakdown || '[]'));
+
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-detail').classList.add('active');
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('on'));
-
-  drawChart(detailPoints, detailTrip.maxSpeedKmh);
-  drawKmTable(JSON.parse(detailTrip.perKmBreakdown || '[]'));
-  // Wait one frame so the now-visible container has finished layout before Leaflet measures it.
-  requestAnimationFrame(()=> drawMap(detailPoints, detailTrip.maxSpeedKmh));
 }
 
 function drawChart(points, maxSpeed){
   const wrap = document.getElementById('chartWrap');
-  if(!points.length){ wrap.innerHTML = '<div class="empty">ไม่มีข้อมูลความเร็ว</div>'; return; }
-  if(points.length === 1){
-    wrap.innerHTML = `<div class="empty">บันทึกพิกัดได้จุดเดียว (ทริปสั้นมาก)<br>ความเร็ว ณ จุดนั้น: <b style="color:var(--text)">${points[0].speedKmh.toFixed(1)} กม./ชม.</b><br>ต้องมีอย่างน้อย 2 จุดถึงจะวาดกราฟความเร็ว-ระยะทางได้</div>`;
-    return;
-  }
+  if(points.length < 2){ wrap.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับกราฟ</div>'; return; }
   const maxD = points[points.length-1].distanceFromStartKm || 0;
   if(maxD <= 0.001){
     wrap.innerHTML = '<div class="empty">ทริปนี้ไม่มีระยะทางเคลื่อนที่ (GPS อยู่นิ่งจุดเดียวตลอด) จึงไม่มีกราฟให้แสดง</div>';
@@ -837,53 +658,35 @@ function drawMap(points, maxSpeed){
   const mapEl = document.getElementById('map');
   if(leafletMap){ leafletMap.remove(); leafletMap = null; }
   waypointMarkers = [];
+  if(points.length < 2){ mapEl.innerHTML = '<div class="empty">ข้อมูลไม่พอสำหรับแผนที่</div>'; return; }
+  mapEl.innerHTML = '';
 
+  const totalDist = points[points.length-1].distanceFromStartKm || 0;
   const stillNoticeEl = document.getElementById('mapStillNotice');
   if(stillNoticeEl) stillNoticeEl.remove();
-
-  if(!points.length){ mapEl.innerHTML = '<div class="empty">ไม่มีพิกัดให้แสดงบนแผนที่</div>'; return; }
-  mapEl.innerHTML = '';
+  if(totalDist <= 0.001){
+    const notice = document.createElement('div');
+    notice.id = 'mapStillNotice';
+    notice.className = 'hint';
+    notice.style.cssText = 'text-align:left; margin-bottom:10px;';
+    notice.textContent = '📍 GPS อยู่นิ่งจุดเดียวตลอดทริป จึงไม่มีเส้นทางให้ไล่สี เห็นแค่หมุดต้นทาง/ปลายทางซ้อนกันที่จุดเดียว';
+    mapEl.parentNode.insertBefore(notice, mapEl);
+  }
 
   leafletMap = L.map('map', {zoomControl:false, attributionControl:true});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19, attribution: '© OpenStreetMap'
   }).addTo(leafletMap);
 
-  if(points.length === 1){
-    // Only one GPS fix ever came in (e.g. a trip under a second long) — still show exactly
-    // where it was, just as a single pin with no route line, instead of hiding the map.
-    const notice = document.createElement('div');
-    notice.id = 'mapStillNotice';
-    notice.className = 'hint';
-    notice.style.cssText = 'text-align:left; margin-bottom:10px;';
-    notice.textContent = '📍 บันทึกพิกัดได้จุดเดียว (ทริปสั้นมาก) จึงมีแค่หมุดเดียว ไม่มีเส้นทางให้ไล่สี';
-    mapEl.parentNode.insertBefore(notice, mapEl);
-
-    const latlng = [points[0].lat, points[0].lng];
-    L.marker(latlng, {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>จุดเดียวที่บันทึกได้</b>');
-    leafletMap.setView(latlng, 17);
-  }else{
-    const totalDist = points[points.length-1].distanceFromStartKm || 0;
-    if(totalDist <= 0.001){
-      const notice = document.createElement('div');
-      notice.id = 'mapStillNotice';
-      notice.className = 'hint';
-      notice.style.cssText = 'text-align:left; margin-bottom:10px;';
-      notice.textContent = '📍 GPS อยู่นิ่งจุดเดียวตลอดทริป จึงไม่มีเส้นทางให้ไล่สี เห็นแค่หมุดต้นทาง/ปลายทางซ้อนกันที่จุดเดียว';
-      mapEl.parentNode.insertBefore(notice, mapEl);
-    }
-
-    const latlngs = points.map(p=>[p.lat, p.lng]);
-    for(let i=1;i<points.length;i++){
-      L.polyline([[points[i-1].lat, points[i-1].lng],[points[i].lat, points[i].lng]], {
-        color: speedColor(points[i].speedKmh, Math.max(maxSpeed,20)), weight:4, opacity:0.9
-      }).addTo(leafletMap);
-    }
-
-    L.marker(latlngs[0], {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>ต้นทาง</b>');
-    L.marker(latlngs[latlngs.length-1], {icon: END_ICON}).addTo(leafletMap).bindPopup('<b>ปลายทาง</b>');
-    leafletMap.fitBounds(latlngs, {padding:[18,18]});
+  const latlngs = points.map(p=>[p.lat, p.lng]);
+  for(let i=1;i<points.length;i++){
+    L.polyline([[points[i-1].lat, points[i-1].lng],[points[i].lat, points[i].lng]], {
+      color: speedColor(points[i].speedKmh, Math.max(maxSpeed,20)), weight:4, opacity:0.9
+    }).addTo(leafletMap);
   }
+
+  L.marker(latlngs[0], {icon: START_ICON}).addTo(leafletMap).bindPopup('<b>ต้นทาง</b>');
+  L.marker(latlngs[latlngs.length-1], {icon: END_ICON}).addTo(leafletMap).bindPopup('<b>ปลายทาง</b>');
 
   (detailWaypoints || []).forEach(renderWaypointMarker);
 
@@ -891,16 +694,7 @@ function drawMap(points, maxSpeed){
   // Leaflet stops this from firing when the tap lands on an existing marker, so it won't fight with popups.
   leafletMap.on('click', (e)=> openPinPopup(e.latlng));
 
-  // Safety net: some WebViews/browsers still report a stale container size right after the
-  // fade-in transition starts, which leaves tiles looking cut off or missing. Re-measuring
-  // (and re-centering) one more time after layout settles fixes that without a visible flicker.
-  const latlngsForFit = points.map(p=>[p.lat, p.lng]);
-  requestAnimationFrame(()=>{
-    if(!leafletMap) return;
-    leafletMap.invalidateSize();
-    if(points.length === 1){ leafletMap.setView(latlngsForFit[0], 17); }
-    else{ leafletMap.fitBounds(latlngsForFit, {padding:[18,18]}); }
-  });
+  leafletMap.fitBounds(latlngs, {padding:[18,18]});
 }
 
 function openPinPopup(latlng){
@@ -952,7 +746,7 @@ function lon2tile(lon, z){ return Math.floor((lon + 180) / 360 * Math.pow(2, z))
 function lat2tile(lat, z){ return Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) + 1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, z)); }
 
 async function downloadOfflineTiles(){
-  if(!detailPoints || detailPoints.length < 1){ toast('ไม่มีพิกัดให้ดาวน์โหลด'); return; }
+  if(!detailPoints || detailPoints.length < 2){ toast('ไม่มีเส้นทางให้ดาวน์โหลด'); return; }
   if(!navigator.onLine){ toast('ต้องมีอินเทอร์เน็ตตอนดาวน์โหลดแผนที่'); return; }
 
   const lats = detailPoints.map(p=>p.lat), lngs = detailPoints.map(p=>p.lng);
@@ -1004,369 +798,77 @@ function drawKmTable(perKm){
 }
 
 /* ================= Sync to Google Sheets ================= */
-// This is the Apps Script Web App URL the user provided — baked in as the default so sync
-// works out of the box. It can still be overridden from Settings if they ever redeploy.
-const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxa9O4VCzni6Nx3sJu0DObhYNop56BGotbD_B6MsqMKnterAfuuq8v9OGHzXZzfQEQ/exec';
-function getScriptUrl(){ return localStorage.getItem('tt_script_url') || DEFAULT_SCRIPT_URL; }
+function getScriptUrl(){ return localStorage.getItem('tt_script_url') || ''; }
 
-// Core sync call — used by both the manual button and the silent auto-sync paths.
-// Returns {ok:true} or {ok:false, error, isTimeout}.
-async function performSync(trip, points){
+async function syncCurrentTrip(){
   const url = getScriptUrl();
+  if(!url){ toast('ยังไม่ได้ตั้งค่า URL — กดไอคอนตั้งค่ามุมขวาบน'); openSettings(); return; }
+  if(!navigator.onLine){ toast('ไม่มีอินเทอร์เน็ต ลองใหม่ภายหลัง'); return; }
+
+  const btn = document.getElementById('syncBtn');
+  btn.textContent = 'กำลังซิงก์...'; btn.disabled = true;
+
   const controller = new AbortController();
   const timeoutMs = 25000;
   const timer = setTimeout(()=> controller.abort(), timeoutMs);
+
   try{
     const res = await fetch(url, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ trip, trackpoints: points }),
+      body: JSON.stringify({ trip: detailTrip, trackpoints: detailPoints }),
       signal: controller.signal
     });
     clearTimeout(timer);
-    if(!res.ok) return { ok:false, error:`HTTP ${res.status}` };
+
+    if(!res.ok){
+      throw new Error(`เซิร์ฟเวอร์ตอบกลับผิดปกติ (HTTP ${res.status}) — ตรวจว่า deploy เป็น "Anyone" แล้วหรือยัง`);
+    }
     const raw = await res.text();
     let data;
     try{ data = JSON.parse(raw); }
-    catch(e){ return { ok:false, error:'ได้ข้อมูลที่ไม่ใช่ JSON กลับมา (URL อาจ deploy ไม่ถูกต้อง)' }; }
-    if(data.ok === false) return { ok:false, error: data.error || 'sync failed' };
-    trip.synced = true;
-    await idbPut('trips', trip);
-    return { ok:true };
-  }catch(err){
-    clearTimeout(timer);
-    return { ok:false, error: err.name === 'AbortError' ? `หมดเวลารอ (${timeoutMs/1000}s)` : err.message, isTimeout: err.name === 'AbortError' };
-  }
-}
+    catch(parseErr){
+      throw new Error('ได้รับข้อมูลที่ไม่ใช่ JSON กลับมา — มักแปลว่า URL ยังไม่ได้ deploy เป็น Web app ที่ถูกต้อง หรือ Apps Script มี error');
+    }
+    if(data.ok === false) throw new Error(data.error || 'sync failed');
 
-async function syncCurrentTrip(){
-  if(!navigator.onLine){ toast('ไม่มีอินเทอร์เน็ต ลองใหม่ภายหลัง'); return; }
-  const btn = document.getElementById('syncBtn');
-  btn.textContent = 'กำลังซิงก์...'; btn.disabled = true;
-
-  const result = await performSync(detailTrip, detailPoints);
-  if(result.ok){
+    detailTrip.synced = true;
+    await idbPut('trips', detailTrip);
     btn.textContent = 'ซิงก์แล้ว — ซิงก์อีกครั้ง';
     toast('ซิงก์ขึ้น Google Sheets สำเร็จ');
-  }else{
+  }catch(err){
+    clearTimeout(timer);
+    console.error(err);
     btn.textContent = 'ซิงก์ขึ้น Google Sheets';
-    toast('ซิงก์ไม่สำเร็จ: ' + result.error);
+    if(err.name === 'AbortError'){
+      toast(`หมดเวลารอ (${timeoutMs/1000}s) — เซิร์ฟเวอร์ตอบช้าเกินไป ลองใหม่อีกครั้ง`);
+    } else {
+      toast('ซิงก์ไม่สำเร็จ: ' + err.message);
+    }
   }
   btn.disabled = false;
-}
-
-// Called right after a trip is saved — syncs it in the background with no button/UI involved.
-async function autoSyncTrip(tripId){
-  if(!navigator.onLine) return;
-  const trips = await idbGetAll('trips');
-  const trip = trips.find(t=>t.id===tripId);
-  if(!trip || trip.synced) return;
-  const points = await idbGetAllByIndex('trackpoints', 'tripId', tripId);
-  const result = await performSync(trip, points);
-  if(result.ok){ toast('ซิงก์ทริปขึ้น Google Sheets อัตโนมัติแล้ว'); renderHistory(); }
-  // Silent on failure here — it'll be retried by autoSyncPendingTrips() next time the app opens.
-}
-
-// Called on app start — quietly retries any trip that never made it up (e.g. was offline).
-async function autoSyncPendingTrips(){
-  if(!navigator.onLine) return;
-  const trips = await idbGetAll('trips');
-  const pending = trips.filter(t=>!t.synced);
-  if(!pending.length) return;
-  let synced = 0;
-  for(const trip of pending){
-    const points = await idbGetAllByIndex('trackpoints', 'tripId', trip.id);
-    const result = await performSync(trip, points);
-    if(result.ok) synced++;
-  }
-  if(synced){ toast(`ซิงก์ทริปค้างอยู่ ${synced} รายการสำเร็จ`); renderHistory(); }
-}
-
-/* ================= Delete trip ================= */
-// Deletes are permanent — local IndexedDB rows are removed immediately either way. The Google
-// Sheets side is removed via a POST to the same Apps Script URL; if that fails (offline, Sheets
-// down) the id is queued in localStorage and retried automatically next time the app is online,
-// the same pattern autoSyncPendingTrips() uses for un-synced trips.
-const PENDING_DELETES_KEY = 'tt_pending_deletes_v1';
-function readPendingDeletes(){
-  try{ return JSON.parse(localStorage.getItem(PENDING_DELETES_KEY) || '[]'); }catch(e){ return []; }
-}
-function writePendingDeletes(list){
-  try{ localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(list)); }catch(e){}
-}
-function queuePendingDelete(id){
-  const list = readPendingDeletes();
-  if(!list.includes(id)){ list.push(id); writePendingDeletes(list); }
-}
-
-// Returns true on confirmed success, false on a real failure, 'offline' if there's no point trying.
-async function deleteRemoteTrip(id){
-  if(!navigator.onLine) return 'offline';
-  const base = getScriptUrl();
-  if(!base) return false;
-  try{
-    const controller = new AbortController();
-    const timer = setTimeout(()=> controller.abort(), 20000);
-    const res = await fetch(base, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ action:'delete', tripId:id }),
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-    if(!res.ok) return false;
-    const data = await res.json();
-    return !!data.ok;
-  }catch(e){ return false; }
-}
-
-async function deleteTrip(id, isRemote){
-  if(!confirm('ลบทริปนี้ถาวร? ข้อมูลพิกัดทั้งหมดของทริปนี้จะหายไปและกู้คืนไม่ได้')) return;
-
-  // Remove local copies if they exist (idbDelete on a non-existent key is a harmless no-op —
-  // safe to call even for a trip that only ever lived in Google Sheets).
-  await idbDelete('trips', id);
-  const points = await idbGetAllByIndex('trackpoints', 'tripId', id);
-  for(const p of points){ await idbDelete('trackpoints', p.id); }
-  const waypoints = await idbGetAllByIndex('waypoints', 'tripId', id);
-  for(const w of waypoints){ await idbDelete('waypoints', w.id); }
-
-  // Drop any cached copies of this trip / the list so a deleted trip can't reappear from cache.
-  try{ localStorage.removeItem(remoteTripCacheKey(id)); }catch(e){}
-  try{ localStorage.removeItem(REMOTE_LIST_CACHE_KEY); }catch(e){}
-
-  const result = await deleteRemoteTrip(id);
-  if(result === true){
-    toast('ลบทริปแล้ว ทั้งในเครื่องและ Google Sheets');
-  }else{
-    queuePendingDelete(id);
-    toast(result === 'offline'
-      ? 'ลบในเครื่องแล้ว — จะลบใน Sheets ให้อัตโนมัติเมื่อมีเน็ต'
-      : 'ลบในเครื่องแล้ว แต่ลบใน Sheets ไม่สำเร็จ จะลองใหม่ให้อัตโนมัติ');
-  }
-
-  // If we were looking at this exact trip's detail page, back out to the history list.
-  if(document.getElementById('view-detail').classList.contains('active') && detailTrip && detailTrip.id === id){
-    showView('history');
-  }else{
-    renderHistory();
-  }
-}
-
-// Called on app start (alongside autoSyncPendingTrips) — retries any deletes that couldn't
-// reach Google Sheets earlier.
-async function retryPendingDeletes(){
-  if(!navigator.onLine) return;
-  const pending = readPendingDeletes();
-  if(!pending.length) return;
-  const stillPending = [];
-  let deleted = 0;
-  for(const id of pending){
-    const result = await deleteRemoteTrip(id);
-    if(result === true) deleted++; else stillPending.push(id);
-  }
-  writePendingDeletes(stillPending);
-  if(deleted){ toast(`ลบทริปค้างอยู่ใน Sheets สำเร็จ ${deleted} รายการ`); }
 }
 
 /* ================= Settings modal ================= */
 function openSettings(){
   document.getElementById('scriptUrlInput').value = getScriptUrl();
-  refreshPinStatusText();
   document.getElementById('settingsModal').classList.add('show');
 }
 function closeSettings(){ document.getElementById('settingsModal').classList.remove('show'); }
 function saveSettings(){
   const v = document.getElementById('scriptUrlInput').value.trim();
-  if(v) localStorage.setItem('tt_script_url', v);
-  else localStorage.removeItem('tt_script_url'); // falls back to DEFAULT_SCRIPT_URL
+  localStorage.setItem('tt_script_url', v);
   toast('บันทึกการตั้งค่าแล้ว');
   closeSettings();
 }
-function refreshPinStatusText(){
-  const has = !!localStorage.getItem('tt_pin');
-  document.getElementById('pinStatusText').textContent = has
-    ? 'ตอนนี้เปิดล็อกด้วย PIN อยู่ ทุกครั้งที่เปิดแอปต้องกรอกรหัส'
-    : 'ยังไม่ได้ตั้งรหัส PIN — ใครก็เปิดแอปดูข้อมูลได้';
-  document.getElementById('pinRemoveBtn').style.display = has ? 'block' : 'none';
-}
-function startPinChange(){
-  closeSettings();
-  pinTempFirst = null;
-  pinMode = 'setup1';
-  document.getElementById('lockTitle').textContent = 'ตั้งรหัส PIN ใหม่ (4 หลัก)';
-  document.getElementById('lockSub').textContent = 'ใช้ล็อกแอปนี้บนเครื่องนี้';
-  document.getElementById('lockError').textContent = '';
-  pinInput = ''; renderPinDots();
-  document.getElementById('lockScreen').classList.add('show');
-}
-function removePinFromSettings(){
-  if(!confirm('ปิดการล็อกด้วย PIN? ใครก็เปิดแอปนี้ดูข้อมูลทริปได้โดยไม่ต้องใส่รหัส')) return;
-  localStorage.removeItem('tt_pin');
-  refreshPinStatusText();
-  toast('ปิดการล็อกแล้ว');
-}
-
-/* ================= PIN Lock ================= */
-let pinInput = '';
-let pinMode = 'unlock'; // 'unlock' | 'setup1' | 'setup2'
-let pinTempFirst = null;
-
-function renderPinDots(){
-  const dots = document.querySelectorAll('#pinDots .pin-dot');
-  dots.forEach((d,i)=> d.classList.toggle('filled', i < pinInput.length));
-}
-function pinPress(digit){
-  if(pinInput.length >= 4) return;
-  pinInput += digit;
-  renderPinDots();
-  if(pinInput.length === 4) setTimeout(processPinEntry, 120);
-}
-function pinBackspace(){
-  pinInput = pinInput.slice(0, -1);
-  renderPinDots();
-}
-function pinError(msg){
-  document.getElementById('lockError').textContent = msg;
-  const inner = document.querySelector('.lock-inner');
-  inner.classList.add('shake');
-  setTimeout(()=> inner.classList.remove('shake'), 400);
-  pinInput = ''; renderPinDots();
-}
-function pinForgot(){
-  if(pinMode !== 'unlock') return; // only relevant when locked out
-  if(!confirm('ล้างรหัส PIN เดิม? ข้อมูลทริปยังอยู่ครบ แค่จะปิดการล็อกแอปนี้ ต้องตั้งรหัสใหม่ภายหลังเอง')) return;
-  localStorage.removeItem('tt_pin');
-  hideLockScreen();
-  toast('ล้างรหัส PIN แล้ว');
-}
-async function processPinEntry(){
-  if(pinMode === 'unlock'){
-    const stored = localStorage.getItem('tt_pin');
-    if(pinInput === stored){ hideLockScreen(); }
-    else{ pinError('รหัสไม่ถูกต้อง ลองใหม่'); }
-  }else if(pinMode === 'setup1'){
-    pinTempFirst = pinInput;
-    pinMode = 'setup2';
-    pinInput = ''; renderPinDots();
-    document.getElementById('lockTitle').textContent = 'กรอกรหัสอีกครั้งเพื่อยืนยัน';
-  }else if(pinMode === 'setup2'){
-    if(pinInput === pinTempFirst){
-      localStorage.setItem('tt_pin', pinInput);
-      hideLockScreen();
-      toast('ตั้งรหัส PIN สำเร็จ');
-    }else{
-      pinError('รหัสไม่ตรงกัน ลองตั้งใหม่');
-      pinMode = 'setup1';
-      document.getElementById('lockTitle').textContent = 'ตั้งรหัส PIN ใหม่ (4 หลัก)';
-    }
-  }
-}
-function hideLockScreen(){
-  document.getElementById('lockScreen').classList.remove('show');
-  pinInput = ''; renderPinDots();
-}
-function initLockScreen(){
-  const stored = localStorage.getItem('tt_pin');
-  pinInput = ''; renderPinDots();
-  document.getElementById('lockError').textContent = '';
-  if(stored){
-    pinMode = 'unlock';
-    document.getElementById('lockTitle').textContent = 'กรอกรหัส PIN';
-    document.getElementById('lockSub').textContent = 'ปกป้องข้อมูลทริปของคุณ';
-    document.getElementById('lockScreen').classList.add('show');
-  }
-  // If no PIN is set, the app just runs unlocked — nothing to show.
-}
 
 /* ================= Init ================= */
-// iOS Safari (especially installed-to-homescreen PWAs) is notoriously slow/unreliable about
-// checking for a new sw.js on its own — it can sit on an old cached service worker for a long
-// time. Two things fix that: (1) tell the browser to never use its HTTP cache for the SW script
-// itself (updateViaCache:'none'), and (2) proactively call registration.update() ourselves,
-// especially every time the app comes back to the foreground — that's exactly the moment
-// (reopening from the home-screen icon) Safari's own background check tends to miss.
-async function registerServiceWorkerWithUpdates(){
-  if(!('serviceWorker' in navigator)) return;
-
-  // Was this page load already controlled by a SW? If so, a later controllerchange means a
-  // genuine update just took over — if not (fresh install, first-ever visit), the first
-  // controllerchange is just normal setup and shouldn't be shown as an "update".
-  const hadControllerBefore = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if(hadControllerBefore) showUpdateBanner();
-  });
-
-  try{
-    const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
-    reg.update().catch(()=>{}); // in case a newer sw.js is already sitting on the server right now
-
-    document.addEventListener('visibilitychange', () => {
-      if(document.visibilityState === 'visible') reg.update().catch(()=>{});
-    });
-  }catch(e){ console.warn('SW register failed', e); }
-}
-
-function showUpdateBanner(){
-  const txt = document.getElementById('updateBannerText');
-  // Reloading mid-trip would stop GPS recording (already-recorded points stay saved safely,
-  // but live tracking would need restarting) — say so instead of silently letting it happen.
-  txt.textContent = currentTrip
-    ? 'มีเวอร์ชันใหม่ของแอป — ถ้ากำลังบันทึกทริปอยู่ ให้กดจบทริปก่อนแล้วค่อยอัปเดต'
-    : 'มีเวอร์ชันใหม่ของแอป กดอัปเดตเพื่อใช้เวอร์ชันล่าสุด';
-  document.getElementById('updateBanner').classList.add('show');
-}
-function dismissUpdateBanner(){
-  document.getElementById('updateBanner').classList.remove('show');
-}
-function applyUpdate(){
-  window.location.reload();
-}
-
-// Manual fallback for the "check update" button — for when Safari's automatic background
-// update check just doesn't fire (a known iOS quirk, especially for home-screen installed apps).
-// This is more aggressive than the automatic path: it wipes the app-shell + library caches and
-// unregisters the service worker entirely, then force-reloads straight from the network, so the
-// next load is guaranteed fresh no matter what Safari was holding onto.
-async function checkForUpdate(){
-  if(currentTrip){
-    if(!confirm('กำลังบันทึกทริปอยู่ การอัปเดตจะหยุดการบันทึกทริปนี้ (ข้อมูลที่บันทึกไปแล้วจะไม่หาย) ต้องการอัปเดตตอนนี้เลยไหม?')) return;
-  }
-
-  const btn = document.getElementById('checkUpdateBtn');
-  if(btn){ btn.disabled = true; btn.classList.add('spinning'); }
-  toast('กำลังเช็คและอัปเดตเวอร์ชัน...');
-
-  try{
-    if('caches' in window){
-      const keys = await caches.keys();
-      // Keep any cache whose name starts with 'trip-tracker-tiles' — that's downloaded offline
-      // map tiles, a separate feature the user may have spent real mobile data getting; clear
-      // everything else (app shell + Leaflet/fonts) so it's fetched fresh.
-      await Promise.all(keys.filter(k => !k.startsWith('trip-tracker-tiles')).map(k => caches.delete(k)));
-    }
-    if('serviceWorker' in navigator){
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
-    }
-  }catch(e){
-    console.warn('checkForUpdate cleanup failed', e);
-  }
-
-  // Cache-busting query string on top of the cache/SW wipe — belt-and-suspenders against any
-  // HTTP-level caching (CDN, GitHub Pages, or the browser itself) still serving a stale index.html.
-  const url = new URL(window.location.href);
-  url.searchParams.set('_u', Date.now());
-  window.location.replace(url.toString());
-}
-
 (async function init(){
   await openDB();
   renderHistory();
-  initLockScreen();
-  registerServiceWorkerWithUpdates();
-  autoSyncPendingTrips();
-  retryPendingDeletes();
+  if('serviceWorker' in navigator){
+    try{ await navigator.serviceWorker.register('sw.js'); }catch(e){ console.warn('SW register failed', e); }
+  }
 })();
 </script>
 </body>
