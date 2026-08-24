@@ -340,6 +340,19 @@ let currentTrip = null; // {id, startTime, points:[]}
 let lastPoint = null;
 let gaugeMaxSpeed = 140; // circumference reference for gauge arc
 let elapsedTimerId = null;
+let wakeLock = null;
+
+async function requestWakeLock(){
+try{
+if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+}catch(e){ console.warn('wake lock failed', e); }
+}
+function releaseWakeLock(){
+if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', ()=>{
+if(document.visibilityState === 'visible' && currentTrip) requestWakeLock();
+});
 
 function updateElapsedTime(){
 if(!currentTrip) return;
@@ -367,6 +380,7 @@ enableHighAccuracy:true, maximumAge:1000, timeout:15000
 });
 elapsedTimerId = setInterval(updateElapsedTime, 1000);
 updateElapsedTime();
+requestWakeLock();
 }
 
 function onPosError(err){
@@ -428,6 +442,7 @@ arc.setAttribute('stroke', speedColor(kmh, 100));
 async function stopTrip(){
 if(watchId != null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
 if(elapsedTimerId != null){ clearInterval(elapsedTimerId); elapsedTimerId = null; }
+releaseWakeLock();
 document.getElementById('liveTime').textContent = '0:00';
 const t = currentTrip;
 currentTrip = null;
