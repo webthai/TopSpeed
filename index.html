@@ -563,13 +563,13 @@ document.getElementById('downloadMapStatus').textContent = '';
 document.getElementById('downloadMapBtn').disabled = false;
 document.getElementById('downloadMapBtn').textContent = '📥 ดาวน์โหลดแผนที่ไว้ดูออฟไลน์';
 
-drawChart(detailPoints, detailTrip.maxSpeedKmh);
-drawMap(detailPoints, detailTrip.maxSpeedKmh);
-drawKmTable(JSON.parse(detailTrip.perKmBreakdown || '[]'));
-
 document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
 document.getElementById('view-detail').classList.add('active');
 document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('on'));
+
+drawChart(detailPoints, detailTrip.maxSpeedKmh);
+drawMap(detailPoints, detailTrip.maxSpeedKmh);
+drawKmTable(JSON.parse(detailTrip.perKmBreakdown || '[]'));
 }
 
 function drawChart(points, maxSpeed){
@@ -669,7 +669,7 @@ L.marker(latlngs[latlngs.length-1], {icon: END_ICON}).addTo(leafletMap).bindPopu
 // Leaflet stops this from firing when the tap lands on an existing marker, so it won't fight with popups.
 leafletMap.on('click', (e)=> openPinPopup(e.latlng));
 
-leafletMap.fitBounds(latlngs, {padding:[18,18]});
+setTimeout(()=>{ if(leafletMap){ leafletMap.invalidateSize(); leafletMap.fitBounds(latlngs, {padding:[18,18]}); } }, 50);
 }
 
 function openPinPopup(latlng){
