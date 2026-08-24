@@ -338,6 +338,7 @@ clearTimeout(toast._h); toast._h = setTimeout(()=>t.classList.remove('show'), 26
 let watchId = null;
 let currentTrip = null; // {id, startTime, points:[]}
 let lastPoint = null;
+let smoothedSpeedKmh = null;
 let gaugeMaxSpeed = 140; // circumference reference for gauge arc
 let elapsedTimerId = null;
 let wakeLock = null;
@@ -371,6 +372,7 @@ async function startTrip(){
 if(!navigator.geolocation){ toast('อุปกรณ์นี้ไม่รองรับ GPS'); return; }
 currentTrip = { id: uuid(), startTime: new Date().toISOString(), points: [], distanceKm:0, maxSpeedKmh:0, speedSum:0, speedCount:0 };
 lastPoint = null;
+smoothedSpeedKmh = null;
 document.getElementById('tripBtn').className = 'cta stop';
 document.getElementById('tripBtn').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> จบทริป & บันทึก';
 document.getElementById('tripHint').innerHTML = '<b>กำลังบันทึก...</b> ปล่อยแอปไว้เปิดหน้าจอหรือทำงานพื้นหลังได้ตามการตั้งค่ามือถือ';
@@ -389,10 +391,15 @@ document.getElementById('gpsStatus').classList.remove('live');
 }
 
 async function onPosition(pos){
-const {latitude:lat, longitude:lng, speed} = pos.coords;
+const {latitude:lat, longitude:lng, speed, accuracy} = pos.coords;
 const now = Date.now();
 document.getElementById('gpsStatus').textContent = 'GPS: สัญญาณดี';
 document.getElementById('gpsStatus').classList.add('live');
+
+// Skip unreliable fixes (weak signal) and fixes fired too close together in time —
+// both are common causes of sudden speed spikes/dips.
+if(accuracy != null && accuracy > 30) return;
+if(lastPoint && (now - lastPoint.t) < 500) return;
 
 let speedKmh;
 if(speed != null && !isNaN(speed) && speed >= 0){
@@ -405,6 +412,10 @@ speedKmh = dtH > 0 ? dKm/dtH : 0;
 speedKmh = 0;
 }
 speedKmh = Math.max(0, Math.min(300, speedKmh));
+
+// Smooth out GPS jitter with an exponential moving average instead of using the raw reading directly.
+smoothedSpeedKmh = smoothedSpeedKmh == null ? speedKmh : (smoothedSpeedKmh * 0.65 + speedKmh * 0.35);
+speedKmh = smoothedSpeedKmh;
 
 let stepKm = 0;
 if(lastPoint){
