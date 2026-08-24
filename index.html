@@ -458,6 +458,21 @@ document.getElementById('liveDist').textContent = '0.00 กม.';
 document.getElementById('liveAvg').textContent = '0.0';
 document.getElementById('liveMax').textContent = '0.0';
 renderHistory();
+autoSyncTrip(trip, t.points);
+}
+
+async function autoSyncTrip(trip, points){
+const url = getScriptUrl();
+if(!url || !navigator.onLine) return;
+try{
+const res = await fetch(url, {
+method:'POST',
+headers:{'Content-Type':'text/plain;charset=utf-8'},
+body: JSON.stringify({ trip, trackpoints: points })
+});
+const data = await res.json();
+if(data.ok !== false){ trip.synced = true; await idbPut('trips', trip); toast('ซิงก์ขึ้น Sheets อัตโนมัติแล้ว'); renderHistory(); }
+}catch(e){ console.error(e); }
 }
 
 function buildPerKmBreakdown(points, totalKm){
